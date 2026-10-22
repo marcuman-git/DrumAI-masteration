@@ -1,0 +1,35 @@
+name: DrumMaster AI Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Install Playwright browser + deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+
+      - name: Build app
+        run: npm run build

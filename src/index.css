@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import 'tailwindcss';
+
+:root {
+  font-family: 'Sora', sans-serif;
+  color: #f4f4f5;
+  background: #020617;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: #020617;
+}
+
+kbd,
+code,
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}

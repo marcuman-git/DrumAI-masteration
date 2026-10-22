@@ -1,0 +1,8 @@
+services:
+  tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: drummaster-ai-tests
+    working_dir: /app
+    command: npm test
