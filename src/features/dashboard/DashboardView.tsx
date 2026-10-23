@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Flame, Medal, Timer, Zap } from 'lucide-react'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
-import type { PracticeEvent } from '../../core/types/drumming'
+import type { PracticeEvent, UserProfile } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { ProgressRing } from '../../shared/components/ProgressRing'
 import { SectionHeader } from '../../shared/components/SectionHeader'
@@ -13,6 +14,7 @@ export function DashboardView() {
   const fallbackSkills = useAppStore((state) => state.skills)
   const achievements = useAppStore((state) => state.achievements)
   const [events, setEvents] = useState<PracticeEvent[]>([])
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -33,6 +35,10 @@ export function DashboardView() {
       window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
     }
+  }, [])
+
+  useEffect(() => {
+    void loadUserProfile().then(setProfile)
   }, [])
 
   const metrics = useMemo(() => buildPracticeMetrics(events), [events])
@@ -115,6 +121,23 @@ export function DashboardView() {
           </p>
         </GlassCard>
       </section>
+
+      <GlassCard className="space-y-2">
+        <SectionHeader title="Onboarding Profile" subtitle="Personal roadmap inputs used by AI planning" />
+        {profile ? (
+          <>
+            <p className="text-sm text-zinc-200">
+              Level: <span className="text-cyan-200">{profile.experienceLevel}</span> | Daily Target:{' '}
+              <span className="text-cyan-200">{profile.dailyMinutes} min</span> | Setup:{' '}
+              <span className="text-cyan-200">{profile.drumSetup}</span>
+            </p>
+            <p className="text-xs text-zinc-400">Styles: {profile.styles.join(', ')}</p>
+            <p className="text-xs text-zinc-400">Goals: {profile.goals.join(', ')}</p>
+          </>
+        ) : (
+          <p className="text-sm text-zinc-400">No onboarding profile saved yet. Use the header button to create one.</p>
+        )}
+      </GlassCard>
 
       <section className="grid gap-3 md:grid-cols-3">
         {achievements.map((achievement) => (
