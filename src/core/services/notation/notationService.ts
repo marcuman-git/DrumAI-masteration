@@ -35,9 +35,17 @@ export function renderDrumPattern(container: HTMLElement, pattern: DrumNotationP
   }
 }
 
-export function generateFillPattern(complexity: number): DrumNotationPattern {
-  const pool = ['c5/8', 'c5/16', 'd4/16', 'f4/16']
-  const restPool = ['c5/8r', 'c5/16r']
+export function generateFillPattern(complexity: number, style = 'Rock'): DrumNotationPattern {
+  const stylePools: Record<string, string[]> = {
+    Rock: ['c5/8', 'd4/8', 'f4/8', 'c5/16'],
+    Funk: ['c5/16', 'd4/16', 'd4/8', 'f4/16'],
+    Fusion: ['c5/16', 'd4/16', 'f4/16', 'c5/8'],
+    Metal: ['f4/16', 'f4/16', 'd4/16', 'c5/16'],
+    Gospel: ['d4/16', 'c5/16', 'd4/8', 'f4/16'],
+    Progressive: ['c5/16', 'd4/16', 'f4/16', 'c5/8', 'd4/8'],
+  }
+  const pool = stylePools[style] ?? stylePools.Rock
+  const restPool = ['c5/8r', 'c5/16r', 'd4/16r']
   const length = Math.max(4, Math.min(16, complexity * 2 + 4))
 
   const restChance = Math.min(0.28, complexity * 0.025)
