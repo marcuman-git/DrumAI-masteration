@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Plus, Square } from 'lucide-react'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -45,11 +46,23 @@ export function GrooveLibraryView() {
   const [playlist, setPlaylist] = useState<GrooveItem[]>([])
   const [playingId, setPlayingId] = useState<string | null>(null)
   const timerRef = useRef<number | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
 
   const filtered = useMemo(
     () => (styleFilter === 'All' ? grooves : grooves.filter((item) => item.style === styleFilter)),
     [styleFilter],
   )
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+      }
+      if (sessionIdRef.current) {
+        stopPracticeSession('groove-library', sessionIdRef.current, { reason: 'unmount' })
+      }
+    }
+  }, [])
 
   function addToPlaylist(item: GrooveItem) {
     setPlaylist((current) => {
@@ -63,6 +76,10 @@ export function GrooveLibraryView() {
       window.clearInterval(timerRef.current)
       timerRef.current = null
     }
+    if (playingId && sessionIdRef.current) {
+      stopPracticeSession('groove-library', sessionIdRef.current, { grooveId: playingId })
+      sessionIdRef.current = null
+    }
     setPlayingId(null)
   }
 
@@ -74,6 +91,9 @@ export function GrooveLibraryView() {
 
     stopPreview()
     setPlayingId(item.id)
+    const sessionId = startPracticeSession('groove-library', { grooveId: item.id, style: item.style, title: item.title })
+    sessionIdRef.current = sessionId
+    void trackPracticeEvent('groove-library', 'score', { action: 'preview', grooveId: item.id }, sessionId)
 
     const stepFreq = [120, 850, 120, 650]
     let step = 0
