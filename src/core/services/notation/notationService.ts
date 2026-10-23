@@ -37,14 +37,19 @@ export function renderDrumPattern(container: HTMLElement, pattern: DrumNotationP
 
 export function generateFillPattern(complexity: number): DrumNotationPattern {
   const pool = ['c5/8', 'c5/16', 'd4/16', 'f4/16']
+  const restPool = ['c5/8r', 'c5/16r']
   const length = Math.max(4, Math.min(16, complexity * 2 + 4))
 
-  const notes = Array.from({ length }, () => pool[Math.floor(Math.random() * pool.length)])
-  const sticking = Array.from({ length }, (_, i) => (i % 2 === 0 ? 'R' : 'L'))
+  const restChance = Math.min(0.28, complexity * 0.025)
+  const notes = Array.from({ length }, () => {
+    if (Math.random() < restChance) {
+      return restPool[Math.floor(Math.random() * restPool.length)]
+    }
+    return pool[Math.floor(Math.random() * pool.length)]
+  })
 
   return {
     title: 'Generated Fill',
     notes,
-    sticking,
   }
 }
