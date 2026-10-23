@@ -19,13 +19,21 @@ function safeParse(raw: string | null): PracticeEvent[] {
 }
 
 async function readEvents(): Promise<PracticeEvent[]> {
-  const fromDb = await get<PracticeEvent[]>(EVENTS_KEY)
-  if (Array.isArray(fromDb)) return fromDb
+  try {
+    const fromDb = await get<PracticeEvent[]>(EVENTS_KEY)
+    if (Array.isArray(fromDb)) return fromDb
+  } catch {
+    // fall through to localStorage in non-browser/test environments
+  }
   return safeParse(localStorage.getItem(EVENTS_FALLBACK_KEY))
 }
 
 async function writeEvents(events: PracticeEvent[]): Promise<void> {
-  await set(EVENTS_KEY, events)
+  try {
+    await set(EVENTS_KEY, events)
+  } catch {
+    // allow local fallback when IndexedDB is unavailable
+  }
   localStorage.setItem(EVENTS_FALLBACK_KEY, JSON.stringify(events))
 }
 
