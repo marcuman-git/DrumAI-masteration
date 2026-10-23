@@ -65,6 +65,17 @@ export interface SessionInsight {
   focus: SkillKey
 }
 
+export type PracticeEventType = 'start' | 'hit' | 'mistake' | 'stop' | 'score'
+
+export interface PracticeEvent {
+  id: string
+  timestamp: string
+  moduleId: TrainingModuleId
+  type: PracticeEventType
+  sessionId?: string
+  payload?: Record<string, number | string | boolean | null>
+}
+
 export interface DrumPlugin {
   id: string
   name: string
