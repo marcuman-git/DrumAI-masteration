@@ -11,7 +11,7 @@ const routines = [
 
 export function PracticePadModeView() {
   const [routineId, setRoutineId] = useState('tech')
-  const [bpm, setBpm] = useState(70)
+  const [bpm, setBpm] = useState(60)
   const [minutes, setMinutes] = useState(10)
 
   const routine = useMemo(() => routines.find((item) => item.id === routineId) ?? routines[0], [routineId])
