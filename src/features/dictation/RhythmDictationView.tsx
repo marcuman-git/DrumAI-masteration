@@ -5,16 +5,23 @@ import type { DrumNotationPattern } from '../../core/services/notation/notationS
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
-const questionBank: Array<{ prompt: DrumNotationPattern; answers: string[]; correct: string }> = [
+const questionBank: Array<{
+  prompt: DrumNotationPattern
+  answers: string[]
+  correct: string
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
+}> = [
   {
     prompt: { title: 'Question 1', notes: ['c5/8', 'c5/8', 'd4/8', 'c5/8'] },
     answers: ['Straight 8ths with backbeat', 'Triplet phrase', 'Syncopated sixteenths'],
     correct: 'Straight 8ths with backbeat',
+    difficulty: 'Beginner',
   },
   {
     prompt: { title: 'Question 2', notes: ['c5/16', 'c5/16', 'd4/8', 'f4/8'] },
     answers: ['Straight 8ths with backbeat', 'Syncopated sixteenths', 'Shuffle'],
     correct: 'Syncopated sixteenths',
+    difficulty: 'Intermediate',
   },
 ]
 
@@ -36,9 +43,28 @@ export function RhythmDictationView() {
   }
 
   function nextQuestion() {
+    if (!result) return
     setQuestionIndex((value) => (value + 1) % questionBank.length)
     setSelected(null)
     setResult(null)
+  }
+
+  function answerClasses(answer: string): string {
+    if (!result) {
+      return selected === answer
+        ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
+        : 'border-white/10 text-zinc-200'
+    }
+
+    if (answer === question.correct) {
+      return 'border-emerald-400/50 bg-emerald-500/20 text-emerald-100'
+    }
+
+    if (answer === selected && selected !== question.correct) {
+      return 'border-rose-400/50 bg-rose-500/20 text-rose-100'
+    }
+
+    return 'border-white/10 text-zinc-400'
   }
 
   return (
@@ -64,7 +90,8 @@ export function RhythmDictationView() {
                 key={answer}
                 type="button"
                 onClick={() => setSelected(answer)}
-                className={`rounded-lg border px-3 py-2 text-left text-sm ${selected === answer ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100' : 'border-white/10 text-zinc-200'}`}
+                disabled={Boolean(result)}
+                className={`rounded-lg border px-3 py-2 text-left text-sm ${answerClasses(answer)}`}
               >
                 {answer}
               </button>
@@ -75,16 +102,18 @@ export function RhythmDictationView() {
             <button
               type="button"
               onClick={submitAnswer}
+              disabled={!selected || Boolean(result)}
               className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-100"
             >
-              Submit
+              Confirm Answer
             </button>
             <button
               type="button"
               onClick={nextQuestion}
+              disabled={!result}
               className="rounded-lg border border-violet-300/40 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
             >
-              Next
+              Next Quiz
             </button>
           </div>
 
@@ -97,6 +126,9 @@ export function RhythmDictationView() {
 
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Mode + Difficulty</p>
+          <p className="mt-2 inline-block rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
+            Difficulty: {question.difficulty}
+          </p>
           <label className="mt-3 block text-xs text-zinc-300">
             Playback Tempo {tempo} BPM
             <input
