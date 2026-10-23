@@ -64,7 +64,7 @@ export function RhythmDictationView() {
   const [questionIndex, setQuestionIndex] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null)
-  const [tempo, setTempo] = useState(95)
+  const [tempo, setTempo] = useState(60)
 
   const questions = useMemo(() => {
     if (difficultyFilter === 'All') return questionBank
@@ -215,7 +215,7 @@ export function RhythmDictationView() {
             Playback Tempo {tempo} BPM
             <input
               type="range"
-              min={60}
+              min={40}
               max={180}
               value={tempo}
               onChange={(event) => setTempo(Number(event.target.value))}
