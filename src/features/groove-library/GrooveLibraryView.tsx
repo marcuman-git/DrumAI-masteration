@@ -22,6 +22,15 @@ const grooves: GrooveItem[] = [
   { id: 'p1', style: 'Progressive', title: '7/8 Linear Grid', notes: 'Odd-meter linear phrase blocks', bpmRange: '90-160', focus: 'Odd-time phrasing' },
 ]
 
+const previewPatternByStyle: Record<GrooveItem['style'], { freq: number[]; intervalMs: number }> = {
+  Rock: { freq: [120, 860, 120, 640], intervalMs: 185 },
+  Funk: { freq: [120, 860, 740, 120, 650, 760], intervalMs: 165 },
+  Jazz: { freq: [920, 620, 920, 620, 760], intervalMs: 150 },
+  Latin: { freq: [120, 760, 120, 860, 760, 120], intervalMs: 175 },
+  Metal: { freq: [120, 120, 120, 860, 120, 120, 120, 860], intervalMs: 120 },
+  Progressive: { freq: [120, 860, 640, 760, 120, 860, 120], intervalMs: 160 },
+}
+
 function playGrooveHit(frequency: number) {
   const context = new AudioContext()
   const osc = context.createOscillator()
@@ -95,13 +104,14 @@ export function GrooveLibraryView() {
     sessionIdRef.current = sessionId
     void trackPracticeEvent('groove-library', 'score', { action: 'preview', grooveId: item.id }, sessionId)
 
-    const stepFreq = [120, 850, 120, 650]
+    const preview = previewPatternByStyle[item.style]
+    const stepFreq = preview.freq
     let step = 0
 
     timerRef.current = window.setInterval(() => {
       playGrooveHit(stepFreq[step % stepFreq.length])
       step += 1
-    }, 170)
+    }, preview.intervalMs)
   }
 
   return (
