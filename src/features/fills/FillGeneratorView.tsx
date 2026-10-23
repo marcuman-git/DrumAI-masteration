@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
-import { RefreshCw, Volume2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { RefreshCw, Square, Volume2 } from 'lucide-react'
 import { playPattern } from '../../core/services/audio/rhythmPlayback'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import {
   generateFillPattern,
   type DrumNotationPattern,
@@ -11,6 +12,8 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 const styles = ['Rock', 'Funk', 'Fusion', 'Metal', 'Gospel', 'Progressive']
 
 type StartHand = 'R' | 'L'
+const START_HAND_KEY = 'drummaster-fill-start-hand-v1'
+const VALID_NOTE_RE = /^[cdf]\d\/(4|8|16)r?$/
 
 interface FillStep {
   index: number
@@ -54,14 +57,37 @@ function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillSte
   })
 }
 
+function fallbackPattern(): DrumNotationPattern {
+  return {
+    title: 'Generated Fill',
+    notes: ['c5/8', 'd4/16', 'f4/16', 'c5/8', 'c5/16', 'd4/16', 'f4/8', 'c5/8'],
+  }
+}
+
+function sanitizePattern(input: DrumNotationPattern | null | undefined): DrumNotationPattern {
+  const notes = input?.notes?.filter((token) => VALID_NOTE_RE.test(token)) ?? []
+  if (!notes.length) return fallbackPattern()
+  return {
+    title: input?.title ?? 'Generated Fill',
+    notes: notes.slice(0, 24),
+  }
+}
+
 export function FillGeneratorView() {
   const [style, setStyle] = useState('Rock')
   const [complexity, setComplexity] = useState(4)
   const [tempo, setTempo] = useState(60)
-  const [startHand, setStartHand] = useState<StartHand>('R')
-  const [pattern, setPattern] = useState<DrumNotationPattern>(() => generateFillPattern(4))
+  const [startHand, setStartHand] = useState<StartHand>(() => {
+    const saved = localStorage.getItem(START_HAND_KEY)
+    return saved === 'L' ? 'L' : 'R'
+  })
+  const [pattern, setPattern] = useState<DrumNotationPattern>(() => sanitizePattern(generateFillPattern(4)))
   const [activeStep, setActiveStep] = useState<number | null>(null)
+  const [playedSteps, setPlayedSteps] = useState<number[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
+  const [playbackError, setPlaybackError] = useState<string | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
+  const controllerRef = useRef<AbortController | null>(null)
 
   const visualSteps = useMemo(() => buildSteps(pattern, startHand), [pattern, startHand])
   const totalUnits = useMemo(
@@ -70,15 +96,90 @@ export function FillGeneratorView() {
   )
 
   function regenerate() {
-    setPattern(generateFillPattern(complexity))
+    try {
+      const next = sanitizePattern(generateFillPattern(complexity, style))
+      setPattern(next)
+      setPlaybackError(null)
+      void trackPracticeEvent('fills', 'score', {
+        action: 'regenerate',
+        style,
+        complexity,
+        noteCount: next.notes.length,
+      })
+    } catch {
+      setPattern(fallbackPattern())
+      setPlaybackError('Pattern generation failed. Fallback fill loaded.')
+    }
     setActiveStep(null)
+    setPlayedSteps([])
   }
 
   async function handlePlayFill() {
+    if (isPlaying) return
+    setPlaybackError(null)
+    setPlayedSteps([])
     setIsPlaying(true)
-    await playPattern(pattern, tempo, (index) => setActiveStep(index))
-    setActiveStep(null)
+    const controller = new AbortController()
+    controllerRef.current = controller
+    const sessionId = startPracticeSession('fills', { style, complexity, tempo, startHand })
+    sessionIdRef.current = sessionId
+
+    try {
+      await playPattern(
+        pattern,
+        tempo,
+        (index) => {
+          setActiveStep(index)
+          setPlayedSteps((prev) => (prev.includes(index) ? prev : [...prev, index]))
+        },
+        controller.signal,
+      )
+      void trackPracticeEvent('fills', 'score', { action: 'play-complete', tempo, noteCount: pattern.notes.length }, sessionId)
+    } catch {
+      setPlaybackError('Playback failed for this fill. You can regenerate and retry.')
+      void trackPracticeEvent('fills', 'mistake', { action: 'playback-error' }, sessionId)
+    } finally {
+      setActiveStep(null)
+      setIsPlaying(false)
+      controllerRef.current = null
+      if (sessionIdRef.current) {
+        stopPracticeSession('fills', sessionIdRef.current, { tempo, noteCount: pattern.notes.length })
+        sessionIdRef.current = null
+      }
+    }
+  }
+
+  function handleStopFill() {
+    controllerRef.current?.abort()
+    controllerRef.current = null
     setIsPlaying(false)
+    setActiveStep(null)
+    if (sessionIdRef.current) {
+      stopPracticeSession('fills', sessionIdRef.current, { reason: 'manual-stop' })
+      sessionIdRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    localStorage.setItem(START_HAND_KEY, startHand)
+  }, [startHand])
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort()
+      if (sessionIdRef.current) {
+        stopPracticeSession('fills', sessionIdRef.current, { reason: 'unmount' })
+      }
+    }
+  }, [])
+
+  const playProgress = visualSteps.length ? Math.round((playedSteps.length / visualSteps.length) * 100) : 0
+
+  function stepClass(step: FillStep): string {
+    if (activeStep === step.index) return 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
+    if (playedSteps.includes(step.index)) return 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100'
+    if (step.isRest) return 'border-amber-300/40 bg-amber-300/12 text-amber-100'
+    return 'border-white/10 bg-white/5 text-zinc-200'
   }
 
   return (
@@ -99,9 +200,11 @@ export function FillGeneratorView() {
                   className={`rounded-lg border px-3 py-3 transition ${
                     activeStep === step.index
                       ? 'border-cyan-300/70 bg-cyan-300/25'
-                      : step.isRest
-                        ? 'border-amber-300/35 bg-amber-300/10'
-                        : 'border-white/10 bg-black/20'
+                      : playedSteps.includes(step.index)
+                        ? 'border-emerald-300/45 bg-emerald-300/12'
+                        : step.isRest
+                          ? 'border-amber-300/35 bg-amber-300/10'
+                          : 'border-white/10 bg-black/20'
                   }`}
                 >
                   <p className="text-[11px] font-semibold text-zinc-100">{step.noteLabel}</p>
@@ -119,13 +222,7 @@ export function FillGeneratorView() {
                 return (
                   <div
                     key={`bar-${step.index}`}
-                    className={`relative grid h-20 place-items-center rounded border text-xs transition ${
-                      activeStep === step.index
-                        ? 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
-                        : step.isRest
-                          ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
-                          : 'border-white/10 bg-white/5 text-zinc-200'
-                    }`}
+                    className={`relative grid h-20 place-items-center rounded border text-xs transition ${stepClass(step)}`}
                     style={{ width: `${widthPercent}%`, minWidth: '2.5rem' }}
                     title={`${step.noteLabel} | ${step.stickingLabel}`}
                   >
@@ -154,7 +251,17 @@ export function FillGeneratorView() {
             >
               <Volume2 size={12} /> {isPlaying ? 'Playing...' : 'Play Fill'}
             </button>
+            <button
+              type="button"
+              onClick={handleStopFill}
+              disabled={!isPlaying}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Square size={12} /> Stop
+            </button>
           </div>
+          <p className="text-xs text-zinc-400">Playback progress: {playProgress}%</p>
+          {playbackError ? <p className="text-xs text-rose-300">{playbackError}</p> : null}
         </GlassCard>
 
         <GlassCard>
