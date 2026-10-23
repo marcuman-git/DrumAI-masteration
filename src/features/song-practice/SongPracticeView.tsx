@@ -20,7 +20,7 @@ export function SongPracticeView() {
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [countInBeats, setCountInBeats] = useState(4)
-  const [countInBpm, setCountInBpm] = useState(100)
+  const [countInBpm, setCountInBpm] = useState(60)
 
   const [settings, setSettings] = useState<PlaybackSettings>({
     tempoRate: 1,
