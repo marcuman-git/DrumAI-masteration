@@ -1,13 +1,12 @@
-import { Factory } from 'vexflow'
-
 export interface DrumNotationPattern {
   title: string
   notes: string[]
   sticking?: string[]
 }
 
-export function renderDrumPattern(container: HTMLElement, pattern: DrumNotationPattern): void {
+export async function renderDrumPattern(container: HTMLElement, pattern: DrumNotationPattern): Promise<void> {
   try {
+    const { Factory } = await import('vexflow')
     container.innerHTML = ''
     if (!container.id) {
       container.id = `notation-${Math.random().toString(36).slice(2)}`
