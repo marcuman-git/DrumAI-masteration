@@ -9,6 +9,30 @@ import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
 const INTERVAL_MS = 500
+const CALIBRATION_MS = 1800
+
+const drillPatterns = {
+  'Singles (L/R)': ['L', 'R'],
+  'Singles (R/L)': ['R', 'L'],
+  Doubles: ['L', 'L', 'R', 'R'],
+  Paradiddle: ['L', 'R', 'L', 'L', 'R', 'L', 'R', 'R'],
+} as const
+
+type DrillMode = keyof typeof drillPatterns
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function normalizedLevel(data: Uint8Array): number {
+  let sum = 0
+  for (let i = 0; i < data.length; i += 1) {
+    const centered = (data[i] - 128) / 128
+    sum += centered * centered
+  }
+  const rms = Math.sqrt(sum / data.length)
+  return Math.min(100, Math.round(rms * 160))
+}
 
 export function TimingAnalyzerView() {
   const hits = useAppStore((state) => state.hits)
@@ -20,14 +44,20 @@ export function TimingAnalyzerView() {
   const [tracking, setTracking] = useState(false)
   const [midiConnected, setMidiConnected] = useState(false)
   const [triggerThreshold, setTriggerThreshold] = useState(28)
-  const [handPattern, setHandPattern] = useState<'L+R' | 'R+L'>('L+R')
+  const [cooldownMs, setCooldownMs] = useState(120)
+  const [drillMode, setDrillMode] = useState<DrillMode>('Singles (L/R)')
+  const [isCalibrating, setIsCalibrating] = useState(false)
+  const [calibration, setCalibration] = useState<{ noiseFloor: number; peak: number; calibratedAt: string } | null>(null)
+  const [lastInputSource, setLastInputSource] = useState<'mic' | 'midi' | null>(null)
 
   const startRef = useRef<number>(0)
   const sessionIdRef = useRef<string | null>(null)
+  const lastExpectedIndexRef = useRef<number>(-1)
 
   useEffect(() => {
     if (!tracking) return
     startRef.current = performance.now()
+    lastExpectedIndexRef.current = -1
   }, [tracking])
 
   useEffect(() => {
@@ -72,18 +102,11 @@ export function TimingAnalyzerView() {
         const loop = () => {
           analyser.getByteTimeDomainData(data)
 
-          let sum = 0
-          for (let i = 0; i < data.length; i += 1) {
-            const centered = (data[i] - 128) / 128
-            sum += centered * centered
-          }
-
-          const rms = Math.sqrt(sum / data.length)
-          const normalized = Math.min(100, Math.round(rms * 160))
+          const normalized = normalizedLevel(data)
           setMicLevel(normalized)
 
           const now = performance.now()
-          const cooldownPassed = now - lastHitTime > 120
+          const cooldownPassed = now - lastHitTime > cooldownMs
           if (normalized >= triggerThreshold && cooldownPassed) {
             registerHit(now, 'mic')
             lastHitTime = now
@@ -106,13 +129,105 @@ export function TimingAnalyzerView() {
       void context?.close()
       setMicLevel(0)
     }
-  }, [tracking, setMicLevel, triggerThreshold])
+  }, [tracking, setMicLevel, triggerThreshold, cooldownMs])
+
+  async function calibrateInput() {
+    if (isCalibrating || tracking) return
+
+    setIsCalibrating(true)
+    let raf = 0
+    let stream: MediaStream | null = null
+    let context: AudioContext | null = null
+    const samples: number[] = []
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      context = new AudioContext()
+      const source = context.createMediaStreamSource(stream)
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 2048
+      source.connect(analyser)
+      const data = new Uint8Array(analyser.frequencyBinCount)
+      const startAt = performance.now()
+
+      await new Promise<void>((resolve) => {
+        const loop = () => {
+          analyser.getByteTimeDomainData(data)
+          samples.push(normalizedLevel(data))
+
+          if (performance.now() - startAt >= CALIBRATION_MS) {
+            resolve()
+            return
+          }
+          raf = requestAnimationFrame(loop)
+        }
+
+        loop()
+      })
+
+      const noiseFloor = Math.round(samples.reduce((acc, value) => acc + value, 0) / Math.max(1, samples.length))
+      const peak = Math.max(...samples, noiseFloor)
+      const suggestedThreshold = clamp(Math.round(noiseFloor + Math.max(8, (peak - noiseFloor) * 0.45)), 8, 70)
+      const suggestedCooldown = clamp(Math.round(90 + noiseFloor * 1.5), 80, 220)
+
+      setTriggerThreshold(suggestedThreshold)
+      setCooldownMs(suggestedCooldown)
+      setCalibration({
+        noiseFloor,
+        peak,
+        calibratedAt: new Date().toISOString(),
+      })
+
+      void trackPracticeEvent('timing-analyzer', 'score', {
+        action: 'calibration',
+        noiseFloor,
+        peak,
+        suggestedThreshold,
+        suggestedCooldown,
+      })
+    } catch {
+      setMicLevel(0)
+    } finally {
+      cancelAnimationFrame(raf)
+      stream?.getTracks().forEach((track) => track.stop())
+      void context?.close()
+      setIsCalibrating(false)
+    }
+  }
 
   function registerHit(actualAt: number, inputSource: 'mic' | 'midi') {
     const elapsed = actualAt - startRef.current
-    const expectedAt = Math.round(elapsed / INTERVAL_MS) * INTERVAL_MS
+    const expectedIndex = Math.round(elapsed / INTERVAL_MS)
+    const expectedAt = expectedIndex * INTERVAL_MS
     const deviation = elapsed - expectedAt
     const quality = classifyDeviation(deviation)
+    const pattern = drillPatterns[drillMode]
+    let insertedMisses = 0
+
+    if (lastExpectedIndexRef.current >= 0 && expectedIndex - lastExpectedIndexRef.current > 1) {
+      for (let missedIndex = lastExpectedIndexRef.current + 1; missedIndex < expectedIndex; missedIndex += 1) {
+        const missedExpectedAt = missedIndex * INTERVAL_MS
+        const missedHit: TimingHit = {
+          id: crypto.randomUUID(),
+          expectedAt: missedExpectedAt,
+          actualAt: missedExpectedAt + INTERVAL_MS,
+          deviationMs: INTERVAL_MS,
+          quality: 'missed',
+        }
+
+        const missedHand = pattern[(hits.length + insertedMisses) % pattern.length]
+        addHit(missedHit)
+        void trackPracticeEvent(
+          'timing-analyzer',
+          'mistake',
+          { deviationMs: missedHit.deviationMs, quality: 'missed', inputSource, hand: missedHand },
+          sessionIdRef.current ?? undefined,
+        )
+        insertedMisses += 1
+      }
+    }
+
+    lastExpectedIndexRef.current = expectedIndex
 
     const hit: TimingHit = {
       id: crypto.randomUUID(),
@@ -121,19 +236,21 @@ export function TimingAnalyzerView() {
       deviationMs: Math.round(deviation),
       quality,
     }
+    const expectedHand = pattern[(hits.length + insertedMisses) % pattern.length]
 
     addHit(hit)
+    setLastInputSource(inputSource)
     void trackPracticeEvent(
       'timing-analyzer',
       'hit',
-      { deviationMs: hit.deviationMs, quality, inputSource },
+      { deviationMs: hit.deviationMs, quality, inputSource, hand: expectedHand },
       sessionIdRef.current ?? undefined,
     )
     if (quality !== 'perfect') {
       void trackPracticeEvent(
         'timing-analyzer',
         'mistake',
-        { deviationMs: hit.deviationMs, quality, inputSource },
+        { deviationMs: hit.deviationMs, quality, inputSource, hand: expectedHand },
         sessionIdRef.current ?? undefined,
       )
     }
@@ -143,7 +260,9 @@ export function TimingAnalyzerView() {
     if (!tracking) {
       const sessionId = startPracticeSession('timing-analyzer', {
         triggerThreshold,
-        handPattern,
+        cooldownMs,
+        drillMode,
+        calibrated: Boolean(calibration),
       })
       sessionIdRef.current = sessionId
       setTracking(true)
@@ -164,6 +283,7 @@ export function TimingAnalyzerView() {
           accuracy,
           consistency,
           averageDeviation,
+          drillMode,
         },
         sessionIdRef.current,
       )
@@ -183,15 +303,26 @@ export function TimingAnalyzerView() {
 
   const chartData = hits.slice(-40).map((hit, index) => ({ idx: index + 1, deviation: hit.deviationMs }))
 
+  const qualityCounts = useMemo(() => {
+    return hits.reduce(
+      (acc, hit) => {
+        acc[hit.quality] += 1
+        return acc
+      },
+      { perfect: 0, early: 0, late: 0, missed: 0 } as Record<TimingHit['quality'], number>,
+    )
+  }, [hits])
+
   const handStats = useMemo(() => {
     const leftDeviations: number[] = []
     const rightDeviations: number[] = []
+    const pattern = drillPatterns[drillMode]
 
     hits.forEach((hit, index) => {
-      const firstIsLeft = handPattern === 'L+R'
-      const isFirst = index % 2 === 0
+      if (hit.quality === 'missed') return
+      const hand = pattern[index % pattern.length]
 
-      if ((firstIsLeft && isFirst) || (!firstIsLeft && !isFirst)) {
+      if (hand === 'L') {
         leftDeviations.push(hit.deviationMs)
       } else {
         rightDeviations.push(hit.deviationMs)
@@ -207,7 +338,25 @@ export function TimingAnalyzerView() {
       leftAvg: avg(leftDeviations),
       rightAvg: avg(rightDeviations),
     }
-  }, [hits, handPattern])
+  }, [hits, drillMode])
+
+  const expectedSequence = useMemo(() => {
+    const pattern = drillPatterns[drillMode]
+    return Array.from({ length: 8 }, (_, index) => pattern[(hits.length + index) % pattern.length])
+  }, [drillMode, hits.length])
+
+  function handleDrillModeChange(mode: DrillMode) {
+    setDrillMode(mode)
+    void trackPracticeEvent('timing-analyzer', 'score', {
+      action: 'drill-mode-change',
+      drillMode: mode,
+    })
+  }
+
+  function handleClear() {
+    clearHits()
+    lastExpectedIndexRef.current = -1
+  }
 
   useEffect(() => {
     return () => {
@@ -233,10 +382,18 @@ export function TimingAnalyzerView() {
             </button>
             <button
               type="button"
-              onClick={clearHits}
+              onClick={handleClear}
               className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300"
             >
               Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => void calibrateInput()}
+              disabled={isCalibrating || tracking}
+              className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCalibrating ? 'Calibrating...' : 'Calibrate Input'}
             </button>
           </div>
         }
@@ -257,9 +414,24 @@ export function TimingAnalyzerView() {
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Input Status</p>
-          <p className="mt-2 text-sm text-zinc-200">Mic Hit Detection: {tracking ? 'Active' : 'Idle'}</p>
-          <p className="text-sm text-zinc-200">MIDI: {midiConnected ? 'Connected' : 'Not detected'}</p>
-          <p className="text-sm text-zinc-200">Mic Level: {micLevel}%</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className={`rounded-full px-2 py-1 text-[10px] ${tracking ? 'bg-emerald-500/20 text-emerald-200' : 'bg-zinc-700/60 text-zinc-300'}`}>
+              {tracking ? 'Listening' : 'Idle'}
+            </span>
+            <span className={`rounded-full px-2 py-1 text-[10px] ${calibration ? 'bg-cyan-500/20 text-cyan-200' : 'bg-zinc-700/60 text-zinc-300'}`}>
+              {calibration ? 'Calibrated' : 'Not Calibrated'}
+            </span>
+            <span className={`rounded-full px-2 py-1 text-[10px] ${midiConnected ? 'bg-violet-500/20 text-violet-200' : 'bg-zinc-700/60 text-zinc-300'}`}>
+              MIDI {midiConnected ? 'Connected' : 'Not detected'}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-zinc-200">Mic Level: {micLevel}%</p>
+          <p className="text-sm text-zinc-200">Last input: {lastInputSource ? lastInputSource.toUpperCase() : '-'}</p>
+          {calibration ? (
+            <p className="text-xs text-zinc-400">
+              Noise floor {calibration.noiseFloor}% | Peak {calibration.peak}% | {new Date(calibration.calibratedAt).toLocaleTimeString()}
+            </p>
+          ) : null}
         </GlassCard>
       </section>
 
@@ -277,7 +449,38 @@ export function TimingAnalyzerView() {
         </GlassCard>
 
         <GlassCard className="space-y-3">
-          <SectionHeader title="Hand Analysis" subtitle="Alternate-hand inference from mic hits" />
+          <SectionHeader title="Hand Drill + Calibration" subtitle="Drill-driven hand timing analysis and calibrated hit detection." />
+
+          <label className="block text-xs text-zinc-300">
+            Drill Mode
+            <select
+              value={drillMode}
+              onChange={(event) => handleDrillModeChange(event.target.value as DrillMode)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              {(Object.keys(drillPatterns) as DrillMode[]).map((mode) => (
+                <option key={mode} value={mode}>
+                  {mode}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Expected Hand Sequence</p>
+            <div className="mt-2 flex gap-1">
+              {expectedSequence.map((hand, index) => (
+                <span
+                  key={`${hand}-${index}`}
+                  className={`grid h-8 w-8 place-items-center rounded text-xs font-semibold ${
+                    index === 0 ? 'bg-cyan-400/30 text-cyan-100' : 'bg-white/5 text-zinc-300'
+                  }`}
+                >
+                  {hand}
+                </span>
+              ))}
+            </div>
+          </div>
 
           <label className="block text-xs text-zinc-300">
             Trigger Sensitivity {triggerThreshold}%
@@ -290,21 +493,27 @@ export function TimingAnalyzerView() {
               className="mt-2 w-full accent-cyan-400"
             />
           </label>
+          <p className="text-[11px] text-zinc-400">
+            Higher sensitivity catches softer hits but may detect claps/voice. Lower sensitivity ignores weak noise and focuses on stronger stick attacks.
+          </p>
 
           <label className="block text-xs text-zinc-300">
-            Hand Pattern
-            <select
-              value={handPattern}
-              onChange={(event) => setHandPattern(event.target.value as 'L+R' | 'R+L')}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
-            >
-              <option value="L+R">L+R (left starts)</option>
-              <option value="R+L">R+L (right starts)</option>
-            </select>
+            Hit Cooldown {cooldownMs}ms
+            <input
+              type="range"
+              min={80}
+              max={240}
+              value={cooldownMs}
+              onChange={(event) => setCooldownMs(Number(event.target.value))}
+              className="mt-2 w-full accent-violet-400"
+            />
           </label>
 
           <p className="text-sm text-zinc-200">Estimated Left Hand Avg: {handStats.leftAvg} ms</p>
           <p className="text-sm text-zinc-200">Estimated Right Hand Avg: {handStats.rightAvg} ms</p>
+          <p className="text-xs text-zinc-400">
+            Perfect {qualityCounts.perfect} | Early {qualityCounts.early} | Late {qualityCounts.late} | Missed {qualityCounts.missed}
+          </p>
 
           <div className="grid grid-cols-5 gap-1">
             {hits.slice(-25).map((hit) => (
@@ -317,7 +526,9 @@ export function TimingAnalyzerView() {
                       ? '#22d3ee'
                       : hit.quality === 'early'
                         ? '#f59e0b'
-                        : '#f43f5e',
+                        : hit.quality === 'missed'
+                          ? '#6b7280'
+                          : '#f43f5e',
                 }}
                 title={`${hit.deviationMs > 0 ? '+' : ''}${hit.deviationMs}ms`}
               />
