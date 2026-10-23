@@ -33,7 +33,7 @@ export function IndependenceTrainerView() {
     RF: 'Quarters',
     LF: 'Clave',
   })
-  const [bpm, setBpm] = useState(85)
+  const [bpm, setBpm] = useState(60)
 
   const complexityScore = useMemo(() => {
     const complexityMap: Record<string, number> = {
@@ -107,7 +107,7 @@ export function IndependenceTrainerView() {
             Tempo {bpm} BPM
             <input
               type="range"
-              min={50}
+              min={40}
               max={180}
               value={bpm}
               onChange={(event) => setBpm(Number(event.target.value))}
