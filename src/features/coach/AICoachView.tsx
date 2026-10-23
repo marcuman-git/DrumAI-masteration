@@ -32,7 +32,7 @@ export function AICoachView() {
 
     const items = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5)
     if (!items.length) return 'No recorded module events yet.'
-    return items.map(([moduleId, count]) => `${moduleId} (${count})`).join(' | ')
+    return items.map(([moduleId, count]) => `${moduleId}: ${count} events`).join(' | ')
   }, [recentEvents])
 
   return (
@@ -47,6 +47,7 @@ export function AICoachView() {
             Timing Analyzer hits: {hits.length} samples | Live mic level: {micLevel}% | Stored coach insights: {insights.length}
           </p>
           <p className="mt-2 text-xs text-zinc-300">Recorded module sources: {sourceSummary}</p>
+          <p className="mt-1 text-xs text-zinc-500">Counts represent logged practice events (start, hit, mistake, stop, score), not just button clicks.</p>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-zinc-300">20% Timing</div>
