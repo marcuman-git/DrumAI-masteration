@@ -37,7 +37,6 @@ export function MetronomeView() {
   const [humanize, setHumanize] = useState(0)
   const [clickVolume, setClickVolume] = useState(0.3)
   const [randomTempo, setRandomTempo] = useState(false)
-  const [activeBeat, setActiveBeat] = useState(0)
 
   const accentPattern = useMemo(() => [1.8, 1, 1, 1], [])
 
@@ -53,8 +52,8 @@ export function MetronomeView() {
         accentPattern,
         clickVolume,
       },
-      (beat) => {
-        setActiveBeat(beat % 16)
+      () => {
+        // no-op visual pulse handled by animation timing
       },
     )
 
@@ -203,41 +202,26 @@ export function MetronomeView() {
           </button>
         </GlassCard>
 
-        <GlassCard className="flex flex-col items-center justify-center">
-          <p className="mb-4 text-xs uppercase tracking-wide text-zinc-400">Beat Wheel</p>
-          <div className="relative grid h-60 w-60 place-items-center rounded-full border border-white/10 bg-zinc-950/50">
-            <motion.span
-              animate={{ rotate: isRunning ? 360 : 0 }}
-              transition={{
-                repeat: isRunning ? Infinity : 0,
-                ease: 'linear',
-                duration: Math.max(0.35, 240 / bpm),
-              }}
-              className="absolute h-24 w-0.5 origin-bottom bg-cyan-200/80"
-              style={{ bottom: '50%' }}
-            />
-            {Array.from({ length: 16 }).map((_, i) => {
-              const active = i === activeBeat
-              const angle = (i / 16) * Math.PI * 2
-              const x = Math.cos(angle) * 100
-              const y = Math.sin(angle) * 100
-              return (
-                <motion.span
-                  key={i}
-                  animate={{ scale: active ? 1.4 : 1, opacity: active ? 1 : 0.5 }}
-                  className="absolute h-2.5 w-2.5 rounded-full bg-cyan-300"
-                  style={{ transform: `translate(${x}px, ${y}px)` }}
-                />
-              )
-            })}
+        <GlassCard className="flex flex-col items-center justify-center gap-3">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Visual Metronome</p>
+          <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
+            <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
-              animate={{ scale: isRunning ? [1, 1.08, 1] : 1 }}
-              transition={{ duration: 0.7, repeat: isRunning ? Infinity : 0 }}
-              className="rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 py-2 text-center text-sm text-cyan-100"
+              animate={{ rotate: isRunning ? [0, -24, 24, 0] : 0 }}
+              transition={{
+                duration: Math.max(0.22, 60 / bpm),
+                ease: 'easeInOut',
+                repeat: isRunning ? Infinity : 0,
+              }}
+              className="absolute left-1/2 top-4 h-48 w-1 origin-bottom -translate-x-1/2 bg-cyan-300"
             >
-              <p className="text-xs text-zinc-300">Subdivision</p>
-              <p>{subdivisionLabelByValue[subdivision]}</p>
+              <span className="absolute -left-1.5 top-0 h-4 w-4 rounded-full bg-cyan-200" />
             </motion.div>
+            <div className="absolute bottom-4 left-1/2 h-7 w-16 -translate-x-1/2 rounded-lg border border-white/10 bg-black/50" />
+          </div>
+          <div className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-center text-sm text-cyan-100">
+            <p className="text-xs text-zinc-300">Subdivision</p>
+            <p>{subdivisionLabelByValue[subdivision]}</p>
           </div>
         </GlassCard>
       </div>
