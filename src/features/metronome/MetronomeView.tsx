@@ -234,11 +234,12 @@ export function MetronomeView() {
           <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
-              animate={{ rotate: isRunning ? [0, -24, 24, 0] : 0 }}
+              animate={{ rotate: isRunning ? [-28, 28] : 0 }}
               transition={{
-                duration: Math.max(0.22, 60 / bpm),
+                duration: Math.max(0.25, 60 / bpm),
                 ease: 'easeInOut',
                 repeat: isRunning ? Infinity : 0,
+                repeatType: 'reverse',
               }}
               className="absolute left-1/2 top-4 h-48 w-1 origin-bottom -translate-x-1/2 bg-cyan-300"
             >
