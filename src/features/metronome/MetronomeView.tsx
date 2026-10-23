@@ -22,11 +22,11 @@ export function MetronomeView() {
   const tapTimes = useRef<number[]>([])
 
   const [isRunning, setIsRunning] = useState(false)
-  const [bpm, setBpm] = useState(120)
-  const [subdivision, setSubdivision] = useState(4)
+  const [bpm, setBpm] = useState(60)
+  const [subdivision, setSubdivision] = useState(1)
   const [swing, setSwing] = useState(0)
   const [humanize, setHumanize] = useState(0)
-  const [clickVolume, setClickVolume] = useState(0.7)
+  const [clickVolume, setClickVolume] = useState(0.3)
   const [randomTempo, setRandomTempo] = useState(false)
   const [activeBeat, setActiveBeat] = useState(0)
 
