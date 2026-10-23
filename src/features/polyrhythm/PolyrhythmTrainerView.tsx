@@ -17,7 +17,7 @@ function buildPulse(length: number, total: number): boolean[] {
 
 export function PolyrhythmTrainerView() {
   const [ratio, setRatio] = useState<[number, number]>([3, 4])
-  const [tempo, setTempo] = useState(90)
+  const [tempo, setTempo] = useState(60)
   const [viewMode, setViewMode] = useState<'Grid' | 'Circle' | 'Timeline'>('Grid')
 
   const pulses = useMemo(() => {
