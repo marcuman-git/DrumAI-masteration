@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { connectMidi } from '../../core/services/midi/midiService'
 import { accuracyFromHits, classifyDeviation, consistencyFromHits } from '../../core/services/analysis/timingMetrics'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { useAppStore } from '../../core/store/useAppStore'
 import type { TimingHit } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
@@ -22,6 +23,7 @@ export function TimingAnalyzerView() {
   const [handPattern, setHandPattern] = useState<'L+R' | 'R+L'>('L+R')
 
   const startRef = useRef<number>(0)
+  const sessionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!tracking) return
@@ -32,7 +34,7 @@ export function TimingAnalyzerView() {
     if (!tracking) return
 
     let cleanup = () => {}
-    connectMidi((midiHit) => registerHit(midiHit.timestamp))
+    connectMidi((midiHit) => registerHit(midiHit.timestamp, 'midi'))
       .then((dispose) => {
         cleanup = dispose
         setMidiConnected(true)
@@ -83,7 +85,7 @@ export function TimingAnalyzerView() {
           const now = performance.now()
           const cooldownPassed = now - lastHitTime > 120
           if (normalized >= triggerThreshold && cooldownPassed) {
-            registerHit(now)
+            registerHit(now, 'mic')
             lastHitTime = now
           }
 
@@ -106,20 +108,68 @@ export function TimingAnalyzerView() {
     }
   }, [tracking, setMicLevel, triggerThreshold])
 
-  function registerHit(actualAt: number) {
+  function registerHit(actualAt: number, inputSource: 'mic' | 'midi') {
     const elapsed = actualAt - startRef.current
     const expectedAt = Math.round(elapsed / INTERVAL_MS) * INTERVAL_MS
     const deviation = elapsed - expectedAt
+    const quality = classifyDeviation(deviation)
 
     const hit: TimingHit = {
       id: crypto.randomUUID(),
       expectedAt,
       actualAt: elapsed,
       deviationMs: Math.round(deviation),
-      quality: classifyDeviation(deviation),
+      quality,
     }
 
     addHit(hit)
+    void trackPracticeEvent(
+      'timing-analyzer',
+      'hit',
+      { deviationMs: hit.deviationMs, quality, inputSource },
+      sessionIdRef.current ?? undefined,
+    )
+    if (quality !== 'perfect') {
+      void trackPracticeEvent(
+        'timing-analyzer',
+        'mistake',
+        { deviationMs: hit.deviationMs, quality, inputSource },
+        sessionIdRef.current ?? undefined,
+      )
+    }
+  }
+
+  function handleTrackingToggle() {
+    if (!tracking) {
+      const sessionId = startPracticeSession('timing-analyzer', {
+        triggerThreshold,
+        handPattern,
+      })
+      sessionIdRef.current = sessionId
+      setTracking(true)
+      return
+    }
+
+    if (sessionIdRef.current) {
+      stopPracticeSession('timing-analyzer', sessionIdRef.current, {
+        hitCount: hits.length,
+        accuracy,
+        consistency,
+      })
+      void trackPracticeEvent(
+        'timing-analyzer',
+        'score',
+        {
+          hitCount: hits.length,
+          accuracy,
+          consistency,
+          averageDeviation,
+        },
+        sessionIdRef.current,
+      )
+      sessionIdRef.current = null
+    }
+    setTracking(false)
   }
 
   const accuracy = useMemo(() => accuracyFromHits(hits), [hits])
@@ -159,6 +209,14 @@ export function TimingAnalyzerView() {
     }
   }, [hits, handPattern])
 
+  useEffect(() => {
+    return () => {
+      if (sessionIdRef.current) {
+        stopPracticeSession('timing-analyzer', sessionIdRef.current, { reason: 'unmount' })
+      }
+    }
+  }, [])
+
   return (
     <div className="space-y-4">
       <SectionHeader
@@ -168,7 +226,7 @@ export function TimingAnalyzerView() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setTracking((value) => !value)}
+              onClick={handleTrackingToggle}
               className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-100"
             >
               {tracking ? 'Stop Tracking' : 'Start Tracking'}
