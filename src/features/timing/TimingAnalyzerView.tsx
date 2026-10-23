@@ -18,24 +18,14 @@ export function TimingAnalyzerView() {
 
   const [tracking, setTracking] = useState(false)
   const [midiConnected, setMidiConnected] = useState(false)
+  const [triggerThreshold, setTriggerThreshold] = useState(28)
+  const [handPattern, setHandPattern] = useState<'L+R' | 'R+L'>('L+R')
+
   const startRef = useRef<number>(0)
 
   useEffect(() => {
     if (!tracking) return
     startRef.current = performance.now()
-  }, [tracking])
-
-  useEffect(() => {
-    if (!tracking) return
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' && event.key.toLowerCase() !== 'f') return
-      event.preventDefault()
-      registerHit(performance.now())
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
   }, [tracking])
 
   useEffect(() => {
@@ -63,6 +53,7 @@ export function TimingAnalyzerView() {
     let raf = 0
     let stream: MediaStream | null = null
     let context: AudioContext | null = null
+    let lastHitTime = 0
 
     async function initMic() {
       try {
@@ -70,14 +61,32 @@ export function TimingAnalyzerView() {
         context = new AudioContext()
         const source = context.createMediaStreamSource(stream)
         const analyser = context.createAnalyser()
-        analyser.fftSize = 1024
+
+        analyser.fftSize = 2048
         source.connect(analyser)
 
         const data = new Uint8Array(analyser.frequencyBinCount)
+
         const loop = () => {
-          analyser.getByteFrequencyData(data)
-          const avg = data.reduce((acc, value) => acc + value, 0) / data.length
-          setMicLevel(Math.round((avg / 255) * 100))
+          analyser.getByteTimeDomainData(data)
+
+          let sum = 0
+          for (let i = 0; i < data.length; i += 1) {
+            const centered = (data[i] - 128) / 128
+            sum += centered * centered
+          }
+
+          const rms = Math.sqrt(sum / data.length)
+          const normalized = Math.min(100, Math.round(rms * 160))
+          setMicLevel(normalized)
+
+          const now = performance.now()
+          const cooldownPassed = now - lastHitTime > 120
+          if (normalized >= triggerThreshold && cooldownPassed) {
+            registerHit(now)
+            lastHitTime = now
+          }
+
           raf = requestAnimationFrame(loop)
         }
 
@@ -95,7 +104,7 @@ export function TimingAnalyzerView() {
       void context?.close()
       setMicLevel(0)
     }
-  }, [tracking, setMicLevel])
+  }, [tracking, setMicLevel, triggerThreshold])
 
   function registerHit(actualAt: number) {
     const elapsed = actualAt - startRef.current
@@ -115,6 +124,7 @@ export function TimingAnalyzerView() {
 
   const accuracy = useMemo(() => accuracyFromHits(hits), [hits])
   const consistency = useMemo(() => consistencyFromHits(hits), [hits])
+
   const averageDeviation = useMemo(() => {
     if (!hits.length) return 0
     const total = hits.reduce((acc, hit) => acc + hit.deviationMs, 0)
@@ -123,21 +133,39 @@ export function TimingAnalyzerView() {
 
   const chartData = hits.slice(-40).map((hit, index) => ({ idx: index + 1, deviation: hit.deviationMs }))
 
+  const handStats = useMemo(() => {
+    const leftDeviations: number[] = []
+    const rightDeviations: number[] = []
+
+    hits.forEach((hit, index) => {
+      const firstIsLeft = handPattern === 'L+R'
+      const isFirst = index % 2 === 0
+
+      if ((firstIsLeft && isFirst) || (!firstIsLeft && !isFirst)) {
+        leftDeviations.push(hit.deviationMs)
+      } else {
+        rightDeviations.push(hit.deviationMs)
+      }
+    })
+
+    const avg = (values: number[]) => {
+      if (!values.length) return 0
+      return Math.round(values.reduce((acc, value) => acc + value, 0) / values.length)
+    }
+
+    return {
+      leftAvg: avg(leftDeviations),
+      rightAvg: avg(rightDeviations),
+    }
+  }, [hits, handPattern])
+
   return (
     <div className="space-y-4">
       <SectionHeader
         title="Timing Analyzer"
-        subtitle="Real-time rhythm accuracy with keyboard, MIDI, and microphone analysis."
+        subtitle="Microphone-first onset detection for practice pad/snare hit consistency and hand timing balance."
         right={
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => registerHit(performance.now())}
-              className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
-              disabled={!tracking}
-            >
-              Tap Hit
-            </button>
             <button
               type="button"
               onClick={() => setTracking((value) => !value)}
@@ -171,10 +199,9 @@ export function TimingAnalyzerView() {
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Input Status</p>
-          <p className="mt-2 text-sm text-zinc-200">Keyboard: Ready</p>
-          <p className="text-sm text-zinc-200">MIDI: {midiConnected ? 'Connected' : 'Listening'}</p>
+          <p className="mt-2 text-sm text-zinc-200">Mic Hit Detection: {tracking ? 'Active' : 'Idle'}</p>
+          <p className="text-sm text-zinc-200">MIDI: {midiConnected ? 'Connected' : 'Not detected'}</p>
           <p className="text-sm text-zinc-200">Mic Level: {micLevel}%</p>
-          <p className="mt-2 text-xs text-zinc-400">Tip: press Space, play MIDI, or use Tap Hit.</p>
         </GlassCard>
       </section>
 
@@ -191,8 +218,36 @@ export function TimingAnalyzerView() {
           </ResponsiveContainer>
         </GlassCard>
 
-        <GlassCard>
-          <SectionHeader title="Heatmap" subtitle="Recent hit quality" />
+        <GlassCard className="space-y-3">
+          <SectionHeader title="Hand Analysis" subtitle="Alternate-hand inference from mic hits" />
+
+          <label className="block text-xs text-zinc-300">
+            Trigger Sensitivity {triggerThreshold}%
+            <input
+              type="range"
+              min={8}
+              max={70}
+              value={triggerThreshold}
+              onChange={(event) => setTriggerThreshold(Number(event.target.value))}
+              className="mt-2 w-full accent-cyan-400"
+            />
+          </label>
+
+          <label className="block text-xs text-zinc-300">
+            Hand Pattern
+            <select
+              value={handPattern}
+              onChange={(event) => setHandPattern(event.target.value as 'L+R' | 'R+L')}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              <option value="L+R">L+R (left starts)</option>
+              <option value="R+L">R+L (right starts)</option>
+            </select>
+          </label>
+
+          <p className="text-sm text-zinc-200">Estimated Left Hand Avg: {handStats.leftAvg} ms</p>
+          <p className="text-sm text-zinc-200">Estimated Right Hand Avg: {handStats.rightAvg} ms</p>
+
           <div className="grid grid-cols-5 gap-1">
             {hits.slice(-25).map((hit) => (
               <div
@@ -210,8 +265,8 @@ export function TimingAnalyzerView() {
               />
             ))}
           </div>
-          {!hits.length ? <p className="mt-2 text-xs text-zinc-500">No hits yet. Start tracking and capture at least 3 hits.</p> : null}
-          <p className="mt-3 text-xs text-zinc-400">Press <kbd className="rounded bg-zinc-800 px-1">Space</kbd> or play a MIDI pad.</p>
+
+          {!hits.length ? <p className="text-xs text-zinc-500">Start tracking, then play your pad/snare steadily to populate analysis.</p> : null}
         </GlassCard>
       </section>
     </div>
