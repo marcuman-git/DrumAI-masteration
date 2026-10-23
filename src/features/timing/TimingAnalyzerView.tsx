@@ -132,6 +132,14 @@ export function TimingAnalyzerView() {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => registerHit(performance.now())}
+              className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+              disabled={!tracking}
+            >
+              Tap Hit
+            </button>
+            <button
+              type="button"
               onClick={() => setTracking((value) => !value)}
               className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-100"
             >
@@ -166,6 +174,7 @@ export function TimingAnalyzerView() {
           <p className="mt-2 text-sm text-zinc-200">Keyboard: Ready</p>
           <p className="text-sm text-zinc-200">MIDI: {midiConnected ? 'Connected' : 'Listening'}</p>
           <p className="text-sm text-zinc-200">Mic Level: {micLevel}%</p>
+          <p className="mt-2 text-xs text-zinc-400">Tip: press Space, play MIDI, or use Tap Hit.</p>
         </GlassCard>
       </section>
 
@@ -201,6 +210,7 @@ export function TimingAnalyzerView() {
               />
             ))}
           </div>
+          {!hits.length ? <p className="mt-2 text-xs text-zinc-500">No hits yet. Start tracking and capture at least 3 hits.</p> : null}
           <p className="mt-3 text-xs text-zinc-400">Press <kbd className="rounded bg-zinc-800 px-1">Space</kbd> or play a MIDI pad.</p>
         </GlassCard>
       </section>
