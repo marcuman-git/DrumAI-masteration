@@ -201,7 +201,7 @@ export function FillGeneratorView() {
             Tempo {tempo} BPM
             <input
               type="range"
-              min={60}
+              min={40}
               max={240}
               value={tempo}
               onChange={(event) => setTempo(Number(event.target.value))}
