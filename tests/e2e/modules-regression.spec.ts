@@ -12,9 +12,9 @@ test('phase 3 module regressions', async ({ page }) => {
 
   await page.getByRole('button', { name: /rhythm dictation/i }).click()
   await expect(page.getByText('Rhythm Dictation')).toBeVisible()
-  await page.getByRole('button', { name: /confirm answer/i }).click({ trial: true }).catch(() => undefined)
-  await page.getByRole('button', { name: /next quiz/i }).click({ trial: true }).catch(() => undefined)
-  await expect(page.getByRole('button', { name: /play rhythm/i })).toBeVisible()
+  await expect(page.getByText(/listen and identify/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /confirm answer/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /next quiz/i })).toBeVisible()
 
   await page.getByRole('button', { name: /groove library/i }).click()
   await expect(page.getByText('Groove Library')).toBeVisible()
