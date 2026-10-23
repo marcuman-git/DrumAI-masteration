@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square, WandSparkles } from 'lucide-react'
 import { MetronomeEngine } from '../../core/services/audio/metronomeEngine'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -29,6 +30,7 @@ const subdivisionLabelByValue: Record<number, string> = {
 export function MetronomeView() {
   const engineRef = useRef(new MetronomeEngine())
   const tapTimes = useRef<number[]>([])
+  const sessionIdRef = useRef<string | null>(null)
 
   const [isRunning, setIsRunning] = useState(false)
   const [bpm, setBpm] = useState(60)
@@ -71,6 +73,14 @@ export function MetronomeView() {
     return () => window.clearInterval(interval)
   }, [randomTempo, isRunning])
 
+  useEffect(() => {
+    return () => {
+      if (sessionIdRef.current) {
+        stopPracticeSession('metronome', sessionIdRef.current, { reason: 'unmount' })
+      }
+    }
+  }, [])
+
   function handleTapTempo() {
     const now = performance.now()
     tapTimes.current.push(now)
@@ -79,8 +89,25 @@ export function MetronomeView() {
     if (tapTimes.current.length >= 2) {
       const intervals = tapTimes.current.slice(1).map((time, index) => time - tapTimes.current[index])
       const avg = intervals.reduce((acc, val) => acc + val, 0) / intervals.length
-      setBpm(Math.round(60000 / avg))
+      const tappedBpm = Math.round(60000 / avg)
+      setBpm(tappedBpm)
+      void trackPracticeEvent('metronome', 'score', { action: 'tap-tempo', bpm: tappedBpm }, sessionIdRef.current ?? undefined)
     }
+  }
+
+  function handleStartStop() {
+    if (!isRunning) {
+      const sessionId = startPracticeSession('metronome', { bpm, subdivision, swing, humanizeMs: humanize })
+      sessionIdRef.current = sessionId
+      setIsRunning(true)
+      return
+    }
+
+    if (sessionIdRef.current) {
+      stopPracticeSession('metronome', sessionIdRef.current, { bpm, subdivision, swing, humanizeMs: humanize })
+      sessionIdRef.current = null
+    }
+    setIsRunning(false)
   }
 
   return (
@@ -107,7 +134,7 @@ export function MetronomeView() {
               </button>
               <button
                 type="button"
-                onClick={() => setIsRunning((value) => !value)}
+                onClick={handleStartStop}
                 className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-zinc-50"
               >
                 {isRunning ? <Square size={14} className="inline" /> : <Play size={14} className="inline" />} {isRunning ? 'Stop' : 'Start'}
