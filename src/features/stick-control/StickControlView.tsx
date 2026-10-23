@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Play, Square } from 'lucide-react'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -8,9 +9,31 @@ function randomPattern(length: number): string {
   return Array.from({ length }, () => (Math.random() > 0.5 ? 'R' : 'L')).join('')
 }
 
+function playTick(frequency: number) {
+  const context = new AudioContext()
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+
+  osc.frequency.value = frequency
+  osc.type = 'triangle'
+  gain.gain.setValueAtTime(0.0001, context.currentTime)
+  gain.gain.linearRampToValueAtTime(0.2, context.currentTime + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.08)
+
+  osc.connect(gain)
+  gain.connect(context.destination)
+  osc.start()
+  osc.stop(context.currentTime + 0.09)
+
+  window.setTimeout(() => void context.close(), 120)
+}
+
 export function StickControlView() {
   const [difficulty, setDifficulty] = useState<'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'>('Intermediate')
   const [seed, setSeed] = useState(0)
+  const [tempo, setTempo] = useState(60)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const timerRef = useRef<number | null>(null)
 
   const generated = useMemo(() => {
     const sizeByDifficulty = {
@@ -28,6 +51,40 @@ export function StickControlView() {
     ]
   }, [difficulty, seed])
 
+  const activePattern = generated[0]
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+      }
+    }
+  }, [])
+
+  function handlePlay() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+    }
+
+    setIsPlaying(true)
+    const intervalMs = Math.max(120, Math.round(60000 / tempo))
+    let step = 0
+
+    timerRef.current = window.setInterval(() => {
+      const token = activePattern[step % activePattern.length]
+      playTick(token === 'R' ? 920 : 660)
+      step += 1
+    }, intervalMs)
+  }
+
+  function handleStop() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    setIsPlaying(false)
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader title="Stick Control Trainer" subtitle="Unlimited sticking generation with accents, hand lead, and dynamics." />
@@ -41,6 +98,35 @@ export function StickControlView() {
                 <p className="font-mono text-xl tracking-[0.3em] text-cyan-100">{pattern}</p>
               </div>
             ))}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <label className="text-xs text-zinc-300">
+              Tempo {tempo} BPM
+              <input
+                type="range"
+                min={40}
+                max={220}
+                value={tempo}
+                onChange={(event) => setTempo(Number(event.target.value))}
+                className="mt-2 w-full accent-cyan-400"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handlePlay}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+            >
+              <Play size={12} /> Play
+            </button>
+            <button
+              type="button"
+              onClick={handleStop}
+              disabled={!isPlaying}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-60"
+            >
+              <Square size={12} /> Stop
+            </button>
           </div>
         </GlassCard>
 
