@@ -156,15 +156,15 @@ export function RhythmReadingView() {
               {steps.map((step, stepIndex) => (
                 <div
                   key={`${step.token}-${stepIndex}`}
-                  className={`relative grid h-20 place-items-center rounded border text-xs transition ${
+                  className={`relative grid h-20 place-items-center rounded border text-sm transition ${
                     activeStep === stepIndex
                       ? 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
                       : 'border-white/10 bg-white/5 text-zinc-200'
                   }`}
                   style={{ width: `${Math.max(7, step.durationUnits * 9)}%`, minWidth: '2.5rem' }}
                 >
-                  <span className="text-base">{step.symbol}</span>
-                  <span className="absolute bottom-1 text-[10px]">{step.note}</span>
+                  <span className="text-xl leading-none">{step.symbol}</span>
+                  <span className="text-sm leading-none">{step.note}</span>
                   <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
                 </div>
               ))}
