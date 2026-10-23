@@ -16,6 +16,15 @@ const subdivisionOptions = [
 ]
 
 const tempoPresets = [60, 75, 90, 105, 120, 135, 150, 180]
+const subdivisionLabelByValue: Record<number, string> = {
+  1: 'Quarter',
+  2: 'Eighth',
+  3: 'Triplet',
+  4: '16th',
+  5: 'Quintuplet',
+  6: 'Sextuplet',
+  7: 'Septuplet',
+}
 
 export function MetronomeView() {
   const engineRef = useRef(new MetronomeEngine())
@@ -197,6 +206,16 @@ export function MetronomeView() {
         <GlassCard className="flex flex-col items-center justify-center">
           <p className="mb-4 text-xs uppercase tracking-wide text-zinc-400">Beat Wheel</p>
           <div className="relative grid h-60 w-60 place-items-center rounded-full border border-white/10 bg-zinc-950/50">
+            <motion.span
+              animate={{ rotate: isRunning ? 360 : 0 }}
+              transition={{
+                repeat: isRunning ? Infinity : 0,
+                ease: 'linear',
+                duration: Math.max(0.35, 240 / bpm),
+              }}
+              className="absolute h-24 w-0.5 origin-bottom bg-cyan-200/80"
+              style={{ bottom: '50%' }}
+            />
             {Array.from({ length: 16 }).map((_, i) => {
               const active = i === activeBeat
               const angle = (i / 16) * Math.PI * 2
@@ -214,9 +233,10 @@ export function MetronomeView() {
             <motion.div
               animate={{ scale: isRunning ? [1, 1.08, 1] : 1 }}
               transition={{ duration: 0.7, repeat: isRunning ? Infinity : 0 }}
-              className="rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100"
+              className="rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 py-2 text-center text-sm text-cyan-100"
             >
-              {subdivision} Subdiv
+              <p className="text-xs text-zinc-300">Subdivision</p>
+              <p>{subdivisionLabelByValue[subdivision]}</p>
             </motion.div>
           </div>
         </GlassCard>
