@@ -12,8 +12,13 @@ export async function connectMidi(onHit: (hit: MidiHit) => void): Promise<() => 
 
   const access = await navigator.requestMIDIAccess()
   const handlers: Array<{ input: MIDIInput; fn: (event: MIDIMessageEvent) => void }> = []
+  const inputs = Array.from(access.inputs.values())
 
-  access.inputs.forEach((input) => {
+  if (!inputs.length) {
+    throw new Error('No MIDI inputs detected.')
+  }
+
+  inputs.forEach((input) => {
     const handler = (event: MIDIMessageEvent) => {
       if (!event.data) return
       const [status, note, velocity] = Array.from(event.data)
