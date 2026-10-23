@@ -76,6 +76,20 @@ export interface PracticeEvent {
   payload?: Record<string, number | string | boolean | null>
 }
 
+export type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Professional'
+
+export interface UserProfile {
+  id: string
+  createdAt: string
+  updatedAt: string
+  experienceLevel: ExperienceLevel
+  styles: string[]
+  goals: string[]
+  dailyMinutes: number
+  drumSetup: 'Acoustic Kit' | 'Electronic Kit' | 'Practice Pad' | 'Hybrid'
+  hasMidiDevice: boolean
+}
+
 export interface DrumPlugin {
   id: string
   name: string
