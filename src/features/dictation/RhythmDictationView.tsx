@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Volume2 } from 'lucide-react'
 import { playPattern } from '../../core/services/audio/rhythmPlayback'
 import type { DrumNotationPattern } from '../../core/services/notation/notationService'
+import { trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -81,12 +82,30 @@ export function RhythmDictationView() {
   }
 
   async function playQuestion() {
+    void trackPracticeEvent('dictation', 'start', {
+      questionId: question.id,
+      difficulty: question.difficulty,
+      tempo,
+    })
     await playPattern(question.prompt, tempo)
   }
 
   function submitAnswer() {
     if (!selected) return
-    setResult(selected === question.correct ? 'correct' : 'incorrect')
+    const isCorrect = selected === question.correct
+    setResult(isCorrect ? 'correct' : 'incorrect')
+    void trackPracticeEvent('dictation', 'score', {
+      questionId: question.id,
+      difficulty: question.difficulty,
+      isCorrect,
+    })
+    if (!isCorrect) {
+      void trackPracticeEvent('dictation', 'mistake', {
+        questionId: question.id,
+        selectedAnswer: selected,
+        correctAnswer: question.correct,
+      })
+    }
   }
 
   function nextQuestion() {
