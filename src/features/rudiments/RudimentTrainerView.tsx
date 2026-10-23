@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Shuffle, Square } from 'lucide-react'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -39,6 +40,7 @@ export function RudimentTrainerView() {
   const [tempo, setTempo] = useState(60)
   const [isPlaying, setIsPlaying] = useState(false)
   const timerRef = useRef<number | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
 
   const pattern = useMemo(
     () => stickingExamples[Math.floor(Math.random() * stickingExamples.length)],
@@ -50,6 +52,9 @@ export function RudimentTrainerView() {
       if (timerRef.current) {
         window.clearInterval(timerRef.current)
       }
+      if (sessionIdRef.current) {
+        stopPracticeSession('rudiments', sessionIdRef.current, { reason: 'unmount' })
+      }
     }
   }, [])
 
@@ -57,6 +62,13 @@ export function RudimentTrainerView() {
     if (timerRef.current) {
       window.clearInterval(timerRef.current)
     }
+    if (sessionIdRef.current) {
+      stopPracticeSession('rudiments', sessionIdRef.current, { reason: 'restart' })
+    }
+
+    const sessionId = startPracticeSession('rudiments', { category, mode, tempo })
+    sessionIdRef.current = sessionId
+    void trackPracticeEvent('rudiments', 'score', { action: 'play', category, mode, tempo }, sessionId)
 
     setIsPlaying(true)
     const intervalMs = Math.max(120, Math.round(60000 / tempo))
@@ -74,6 +86,10 @@ export function RudimentTrainerView() {
     if (timerRef.current) {
       window.clearInterval(timerRef.current)
       timerRef.current = null
+    }
+    if (sessionIdRef.current) {
+      stopPracticeSession('rudiments', sessionIdRef.current, { category, mode, tempo })
+      sessionIdRef.current = null
     }
     setIsPlaying(false)
   }
