@@ -15,12 +15,18 @@ export async function playPattern(
   pattern: DrumNotationPattern,
   bpm: number,
   onStep?: (index: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const context = new AudioContext()
   const beatMs = 60000 / bpm
   let offsetMs = 0
+  const timerIds: number[] = []
 
   pattern.notes.forEach((token, index) => {
+    if (onStep) {
+      timerIds.push(window.setTimeout(() => onStep(index), Math.max(0, offsetMs - 20)))
+    }
+
     if (token.includes('r')) {
       offsetMs += beatMs * parseDuration(token)
       return
@@ -43,13 +49,29 @@ export async function playPattern(
     osc.start(time)
     osc.stop(time + 0.09)
 
-    if (onStep) {
-      window.setTimeout(() => onStep(index), Math.max(0, offsetMs - 20))
-    }
-
     offsetMs += beatMs * parseDuration(token)
   })
 
-  await new Promise((resolve) => window.setTimeout(resolve, offsetMs + 120))
+  await new Promise<void>((resolve) => {
+    const doneId = window.setTimeout(resolve, offsetMs + 120)
+    timerIds.push(doneId)
+
+    if (signal) {
+      if (signal.aborted) {
+        resolve()
+        return
+      }
+
+      signal.addEventListener(
+        'abort',
+        () => {
+          timerIds.forEach((id) => window.clearTimeout(id))
+          resolve()
+        },
+        { once: true },
+      )
+    }
+  })
+
   await context.close()
 }
