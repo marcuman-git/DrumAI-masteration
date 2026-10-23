@@ -37,6 +37,18 @@ const RhythmDictationView = lazy(() =>
 const FillGeneratorView = lazy(() =>
   import('../features/fills/FillGeneratorView').then((module) => ({ default: module.FillGeneratorView })),
 )
+const IndependenceTrainerView = lazy(() =>
+  import('../features/independence/IndependenceTrainerView').then((module) => ({ default: module.IndependenceTrainerView })),
+)
+const GrooveLibraryView = lazy(() =>
+  import('../features/groove-library/GrooveLibraryView').then((module) => ({ default: module.GrooveLibraryView })),
+)
+const PolyrhythmTrainerView = lazy(() =>
+  import('../features/polyrhythm/PolyrhythmTrainerView').then((module) => ({ default: module.PolyrhythmTrainerView })),
+)
+const PracticePadModeView = lazy(() =>
+  import('../features/practice-pad/PracticePadModeView').then((module) => ({ default: module.PracticePadModeView })),
+)
 const SongPracticeView = lazy(() =>
   import('../features/song-practice/SongPracticeView').then((module) => ({ default: module.SongPracticeView })),
 )
@@ -76,6 +88,14 @@ function renderModule(moduleId: TrainingModuleId) {
       return <RhythmDictationView />
     case 'fills':
       return <FillGeneratorView />
+    case 'independence':
+      return <IndependenceTrainerView />
+    case 'groove-library':
+      return <GrooveLibraryView />
+    case 'polyrhythm':
+      return <PolyrhythmTrainerView />
+    case 'practice-pad':
+      return <PracticePadModeView />
     case 'song-practice':
       return <SongPracticeView />
     case 'coach':
