@@ -18,6 +18,8 @@ interface FillStep {
   isRest: boolean
   noteLabel: string
   stickingLabel: string
+  durationUnits: number
+  symbol: string
 }
 
 function noteLabel(token: string): string {
@@ -33,6 +35,8 @@ function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillSte
   return pattern.notes.map((token, index) => {
     const isRest = token.includes('r')
     const stickingLabel = isRest ? '-' : nextHand
+    const durationUnits = token.includes('/16') ? 1 : token.includes('/8') ? 2 : 4
+    const symbol = isRest ? '𝄽' : token.includes('/16') ? '♬' : token.includes('/8') ? '♪' : '♩'
 
     if (!isRest) {
       nextHand = nextHand === 'R' ? 'L' : 'R'
@@ -44,6 +48,8 @@ function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillSte
       isRest,
       noteLabel: noteLabel(token),
       stickingLabel,
+      durationUnits,
+      symbol,
     }
   })
 }
@@ -58,6 +64,10 @@ export function FillGeneratorView() {
   const [isPlaying, setIsPlaying] = useState(false)
 
   const visualSteps = useMemo(() => buildSteps(pattern, startHand), [pattern, startHand])
+  const totalUnits = useMemo(
+    () => visualSteps.reduce((sum, step) => sum + step.durationUnits, 0),
+    [visualSteps],
+  )
 
   function regenerate() {
     setPattern(generateFillPattern(complexity))
@@ -98,6 +108,33 @@ export function FillGeneratorView() {
                   <p className="mt-1 font-mono text-lg text-cyan-100">{step.stickingLabel}</p>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Musical Bar Chart</p>
+            <div className="mt-3 flex items-end gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
+              {visualSteps.map((step) => {
+                const widthPercent = Math.max(6, (step.durationUnits / Math.max(totalUnits, 1)) * 100)
+                return (
+                  <div
+                    key={`bar-${step.index}`}
+                    className={`relative grid h-20 place-items-center rounded border text-xs transition ${
+                      activeStep === step.index
+                        ? 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
+                        : step.isRest
+                          ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
+                          : 'border-white/10 bg-white/5 text-zinc-200'
+                    }`}
+                    style={{ width: `${widthPercent}%`, minWidth: '2.5rem' }}
+                    title={`${step.noteLabel} | ${step.stickingLabel}`}
+                  >
+                    <span className="text-base">{step.symbol}</span>
+                    <span className="absolute bottom-1 font-mono text-[10px]">{step.stickingLabel}</span>
+                    <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
+                  </div>
+                )
+              })}
             </div>
           </div>
 
