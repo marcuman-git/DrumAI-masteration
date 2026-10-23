@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Square } from 'lucide-react'
 import { parseDuration } from '../../core/services/audio/rhythmPlayback'
 import type { DrumNotationPattern } from '../../core/services/notation/notationService'
+import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -42,9 +43,22 @@ export function RhythmReadingView() {
 
   const timersRef = useRef<number[]>([])
   const contextRef = useRef<AudioContext | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
 
   const selected = useMemo(() => patterns[index], [index])
   const steps = useMemo(() => selected.notes.map(stepInfo), [selected])
+
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((id) => window.clearTimeout(id))
+      if (contextRef.current) {
+        void contextRef.current.close()
+      }
+      if (sessionIdRef.current) {
+        stopPracticeSession('reading', sessionIdRef.current, { reason: 'unmount' })
+      }
+    }
+  }, [])
 
   function clearPlayback() {
     timersRef.current.forEach((id) => window.clearTimeout(id))
@@ -55,6 +69,10 @@ export function RhythmReadingView() {
     }
     setIsPlaying(false)
     setActiveStep(-1)
+    if (sessionIdRef.current) {
+      stopPracticeSession('reading', sessionIdRef.current, { pattern: selected.title, tempo })
+      sessionIdRef.current = null
+    }
   }
 
   function scheduleNote(context: AudioContext, token: string, when: number) {
@@ -78,6 +96,9 @@ export function RhythmReadingView() {
   function handlePlayback() {
     clearPlayback()
 
+    const sessionId = startPracticeSession('reading', { pattern: selected.title, tempo })
+    sessionIdRef.current = sessionId
+
     const context = new AudioContext()
     contextRef.current = context
     setIsPlaying(true)
@@ -94,12 +115,14 @@ export function RhythmReadingView() {
           setActiveStep(stepIndex)
         }, Math.max(0, offsetMs - 10)),
       )
+      void trackPracticeEvent('reading', 'hit', { stepIndex, token }, sessionId)
 
       offsetMs += beatMs * parseDuration(token)
     })
 
     timersRef.current.push(
       window.setTimeout(() => {
+        void trackPracticeEvent('reading', 'score', { completed: true, stepCount: selected.notes.length, tempo }, sessionId)
         clearPlayback()
       }, offsetMs + 180),
     )
