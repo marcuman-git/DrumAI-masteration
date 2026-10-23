@@ -7,6 +7,7 @@ import { ModuleNav } from '../features/shell/ModuleNav'
 import { registerPlugin } from '../core/services/plugins/pluginRegistry'
 import { useAppStore } from '../core/store/useAppStore'
 import type { TrainingModuleId } from '../core/types/drumming'
+import { ModuleErrorBoundary } from '../shared/components/ModuleErrorBoundary'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -182,7 +183,9 @@ export default function App() {
           transition={{ duration: 0.3 }}
           className="mt-4"
         >
-          <Suspense fallback={<ModuleLoadingState />}>{renderModule(activeModule)}</Suspense>
+          <ModuleErrorBoundary>
+            <Suspense fallback={<ModuleLoadingState />}>{renderModule(activeModule)}</Suspense>
+          </ModuleErrorBoundary>
         </motion.main>
       </div>
     </div>
