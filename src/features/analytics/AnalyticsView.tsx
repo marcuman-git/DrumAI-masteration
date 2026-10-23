@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import {
   CartesianGrid,
   Legend,
@@ -8,20 +9,46 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
+import { clearPracticeEvents, listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { useAppStore } from '../../core/store/useAppStore'
+import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
-const trendData = [
-  { period: 'Mon', accuracy: 89, consistency: 80, bpm: 170 },
-  { period: 'Tue', accuracy: 91, consistency: 82, bpm: 176 },
-  { period: 'Wed', accuracy: 93, consistency: 84, bpm: 181 },
-  { period: 'Thu', accuracy: 95, consistency: 86, bpm: 186 },
-  { period: 'Fri', accuracy: 94, consistency: 88, bpm: 192 },
-  { period: 'Sat', accuracy: 96, consistency: 89, bpm: 198 },
-  { period: 'Sun', accuracy: 97, consistency: 91, bpm: 205 },
-]
-
 export function AnalyticsView() {
+  const clearHits = useAppStore((state) => state.clearHits)
+  const [events, setEvents] = useState<PracticeEvent[]>([])
+
+  useEffect(() => {
+    let mounted = true
+
+    const refresh = async () => {
+      const next = await listPracticeEvents(5000)
+      if (!mounted) return
+      setEvents(next)
+    }
+
+    void refresh()
+    const interval = window.setInterval(() => void refresh(), 5000)
+    const onFocus = () => void refresh()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      mounted = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
+
+  const metrics = useMemo(() => buildPracticeMetrics(events), [events])
+
+  async function handleResetData() {
+    await clearPracticeEvents()
+    clearHits()
+    setEvents([])
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader
@@ -29,29 +56,39 @@ export function AnalyticsView() {
         subtitle="Daily, weekly, monthly, and yearly performance intelligence with adaptive learning signals."
       />
 
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void handleResetData()}
+          className="rounded-lg border border-rose-300/40 bg-rose-400/10 px-3 py-2 text-xs text-rose-200"
+        >
+          Reset Test Data
+        </button>
+      </div>
+
       <section className="grid gap-3 md:grid-cols-4">
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Practice Minutes</p>
-          <p className="mt-2 text-4xl font-semibold text-zinc-50">4,420</p>
+          <p className="mt-2 text-4xl font-semibold text-zinc-50">{metrics.practiceMinutes}</p>
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Rudiment Mastery</p>
-          <p className="mt-2 text-4xl font-semibold text-zinc-50">72%</p>
+          <p className="mt-2 text-4xl font-semibold text-zinc-50">{metrics.rudimentMastery}%</p>
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Dynamics Consistency</p>
-          <p className="mt-2 text-4xl font-semibold text-zinc-50">84%</p>
+          <p className="mt-2 text-4xl font-semibold text-zinc-50">{metrics.dynamicsConsistency}%</p>
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">BPM Record</p>
-          <p className="mt-2 text-4xl font-semibold text-zinc-50">212</p>
+          <p className="mt-2 text-4xl font-semibold text-zinc-50">{metrics.bestBpm}</p>
         </GlassCard>
       </section>
 
       <GlassCard className="h-96">
         <SectionHeader title="Weekly Trend" subtitle="Accuracy, consistency, and speed progression" />
         <ResponsiveContainer width="100%" height="82%">
-          <LineChart data={trendData}>
+          <LineChart data={metrics.weeklyTrend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
             <XAxis dataKey="period" stroke="#a1a1aa" />
             <YAxis stroke="#a1a1aa" />
