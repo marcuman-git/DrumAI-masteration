@@ -10,24 +10,54 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 
 const styles = ['Rock', 'Funk', 'Fusion', 'Metal', 'Gospel', 'Progressive']
 
+type StartHand = 'R' | 'L'
+
+interface FillStep {
+  index: number
+  token: string
+  isRest: boolean
+  noteLabel: string
+  stickingLabel: string
+}
+
 function noteLabel(token: string): string {
-  const instrument = token.includes('d4') ? 'Sn' : token.includes('f4') ? 'K' : 'H'
-  const duration = token.includes('/16') ? '16' : token.includes('/8') ? '8' : '4'
-  return `${instrument}${duration}`
+  if (token.includes('r')) return 'REST'
+  const instrument = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hat'
+  const duration = token.includes('/16') ? '16th' : token.includes('/8') ? '8th' : '4th'
+  return `${instrument} ${duration}`
+}
+
+function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillStep[] {
+  let nextHand: StartHand = startHand
+
+  return pattern.notes.map((token, index) => {
+    const isRest = token.includes('r')
+    const stickingLabel = isRest ? '-' : nextHand
+
+    if (!isRest) {
+      nextHand = nextHand === 'R' ? 'L' : 'R'
+    }
+
+    return {
+      index,
+      token,
+      isRest,
+      noteLabel: noteLabel(token),
+      stickingLabel,
+    }
+  })
 }
 
 export function FillGeneratorView() {
   const [style, setStyle] = useState('Rock')
   const [complexity, setComplexity] = useState(4)
   const [tempo, setTempo] = useState(60)
+  const [startHand, setStartHand] = useState<StartHand>('R')
   const [pattern, setPattern] = useState<DrumNotationPattern>(() => generateFillPattern(4))
   const [activeStep, setActiveStep] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  const visualSteps = useMemo(
-    () => pattern.notes.map((token, index) => ({ index, token, label: noteLabel(token) })),
-    [pattern],
-  )
+  const visualSteps = useMemo(() => buildSteps(pattern, startHand), [pattern, startHand])
 
   function regenerate() {
     setPattern(generateFillPattern(complexity))
@@ -43,29 +73,33 @@ export function FillGeneratorView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Fill Generator" subtitle="Unlimited fills with stable visual playback and note-by-note highlighting." />
+      <SectionHeader
+        title="Fill Generator"
+        subtitle="Chart view with note/rest highlighting, start-hand control, and playback verification."
+      />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
         <GlassCard className="space-y-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Fill Pattern View</p>
-            <div className="mt-3 grid grid-cols-4 gap-2 md:grid-cols-8">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Fill Chart</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
               {visualSteps.map((step) => (
                 <div
                   key={`${step.index}-${step.token}`}
-                  className={`rounded-lg border px-3 py-3 text-center text-xs font-semibold transition ${
+                  className={`rounded-lg border px-3 py-3 transition ${
                     activeStep === step.index
-                      ? 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
-                      : 'border-white/10 bg-black/20 text-zinc-200'
+                      ? 'border-cyan-300/70 bg-cyan-300/25'
+                      : step.isRest
+                        ? 'border-amber-300/35 bg-amber-300/10'
+                        : 'border-white/10 bg-black/20'
                   }`}
                 >
-                  {step.label}
+                  <p className="text-[11px] font-semibold text-zinc-100">{step.noteLabel}</p>
+                  <p className="mt-1 font-mono text-lg text-cyan-100">{step.stickingLabel}</p>
                 </div>
               ))}
             </div>
           </div>
-
-          <p className="font-mono text-sm tracking-[0.2em] text-cyan-100">{pattern.sticking?.join(' ')}</p>
 
           <div className="flex gap-2">
             <button
@@ -103,6 +137,18 @@ export function FillGeneratorView() {
           </label>
 
           <label className="mt-3 block text-xs text-zinc-300">
+            Start Hand
+            <select
+              value={startHand}
+              onChange={(event) => setStartHand(event.target.value as StartHand)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              <option value="R">Right (R)</option>
+              <option value="L">Left (L)</option>
+            </select>
+          </label>
+
+          <label className="mt-3 block text-xs text-zinc-300">
             Complexity {complexity}/10
             <input
               type="range"
@@ -126,7 +172,7 @@ export function FillGeneratorView() {
             />
           </label>
 
-          <p className="mt-3 text-xs text-zinc-400">Skill levels supported: beginner to professional.</p>
+          <p className="mt-3 text-xs text-zinc-400">Rests are highlighted in amber and use '-' sticking.</p>
           <p className="text-xs text-zinc-400">Current style profile: {style} phrasing model.</p>
         </GlassCard>
       </div>
