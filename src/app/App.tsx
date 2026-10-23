@@ -1,12 +1,14 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bell, Drum, Download, PlugZap } from 'lucide-react'
+import { Bell, Drum, Download, PlugZap, UserRoundCog } from 'lucide-react'
 import { MODULE_CONTENT } from '../features/library/catalog'
 import { ModuleGridView } from '../features/library/ModuleGridView'
+import { loadUserProfile } from '../core/services/storage/userProfile'
 import { ModuleNav } from '../features/shell/ModuleNav'
+import { OnboardingModal } from '../features/onboarding/OnboardingModal'
 import { registerPlugin } from '../core/services/plugins/pluginRegistry'
 import { useAppStore } from '../core/store/useAppStore'
-import type { TrainingModuleId } from '../core/types/drumming'
+import type { TrainingModuleId, UserProfile } from '../core/types/drumming'
 import { ModuleErrorBoundary } from '../shared/components/ModuleErrorBoundary'
 
 type BeforeInstallPromptEvent = Event & {
@@ -118,6 +120,8 @@ export default function App() {
   const hydrate = useAppStore((state) => state.hydrate)
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     void hydrate()
@@ -129,6 +133,13 @@ export default function App() {
       initialize: () => {
         // Plugin initialization hook for future third-party modules.
       },
+    })
+
+    void loadUserProfile().then((storedProfile) => {
+      setProfile(storedProfile)
+      if (!storedProfile) {
+        setShowOnboarding(true)
+      }
     })
   }, [hydrate])
 
@@ -187,6 +198,13 @@ export default function App() {
               >
                 <Download size={12} className="mr-1 inline" /> Install PWA
               </button>
+              <button
+                type="button"
+                onClick={() => setShowOnboarding(true)}
+                className="rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100"
+              >
+                <UserRoundCog size={12} className="mr-1 inline" /> {profile ? 'Edit Profile' : 'Start Onboarding'}
+              </button>
               <button type="button" className="rounded-lg border border-white/10 px-3 py-1 text-xs text-zinc-200">
                 <Bell size={12} className="mr-1 inline" /> Daily Plan
               </button>
@@ -208,6 +226,13 @@ export default function App() {
           </ModuleErrorBoundary>
         </motion.main>
       </div>
+
+      <OnboardingModal
+        open={showOnboarding}
+        initialProfile={profile}
+        onSaved={(nextProfile) => setProfile(nextProfile)}
+        onClose={() => setShowOnboarding(false)}
+      />
     </div>
   )
 }
