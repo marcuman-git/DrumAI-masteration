@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Shuffle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Play, Shuffle, Square } from 'lucide-react'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -14,14 +14,69 @@ const rudiments = {
 
 const stickingExamples = ['R L R R L R L L', 'R L R L R R L L', 'R R L R L L R L']
 
+function playTick(frequency: number) {
+  const context = new AudioContext()
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+
+  osc.frequency.value = frequency
+  osc.type = 'triangle'
+  gain.gain.setValueAtTime(0.0001, context.currentTime)
+  gain.gain.linearRampToValueAtTime(0.2, context.currentTime + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.08)
+
+  osc.connect(gain)
+  gain.connect(context.destination)
+  osc.start()
+  osc.stop(context.currentTime + 0.09)
+
+  window.setTimeout(() => void context.close(), 120)
+}
+
 export function RudimentTrainerView() {
   const [category, setCategory] = useState<keyof typeof rudiments>('Paradiddles')
   const [mode, setMode] = useState<'Learn' | 'Practice' | 'Challenge' | 'Mastery'>('Practice')
+  const [tempo, setTempo] = useState(60)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const timerRef = useRef<number | null>(null)
 
   const pattern = useMemo(
     () => stickingExamples[Math.floor(Math.random() * stickingExamples.length)],
     [category, mode],
   )
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+      }
+    }
+  }, [])
+
+  function handlePlay() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+    }
+
+    setIsPlaying(true)
+    const intervalMs = Math.max(120, Math.round(60000 / tempo))
+    let step = 0
+
+    timerRef.current = window.setInterval(() => {
+      const tokens = pattern.split(' ')
+      const token = tokens[step % tokens.length]
+      playTick(token === 'R' ? 900 : 650)
+      step += 1
+    }, intervalMs)
+  }
+
+  function handleStop() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    setIsPlaying(false)
+  }
 
   return (
     <div className="space-y-4">
@@ -57,6 +112,35 @@ export function RudimentTrainerView() {
           <div className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4">
             <p className="text-xs uppercase tracking-wide text-cyan-100">Animated Sticking Display</p>
             <p className="mt-2 text-3xl font-semibold tracking-[0.35em] text-zinc-50">{pattern}</p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <label className="text-xs text-zinc-300">
+              Tempo {tempo} BPM
+              <input
+                type="range"
+                min={40}
+                max={220}
+                value={tempo}
+                onChange={(event) => setTempo(Number(event.target.value))}
+                className="mt-2 w-full accent-cyan-400"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handlePlay}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+            >
+              <Play size={12} /> Play
+            </button>
+            <button
+              type="button"
+              onClick={handleStop}
+              disabled={!isPlaying}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-60"
+            >
+              <Square size={12} /> Stop
+            </button>
           </div>
         </GlassCard>
 
