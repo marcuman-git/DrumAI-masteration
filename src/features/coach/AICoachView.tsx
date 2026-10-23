@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
-import type { PracticeEvent } from '../../core/types/drumming'
+import type { PracticeEvent, UserProfile } from '../../core/types/drumming'
 
 export function AICoachView() {
   const hits = useAppStore((state) => state.hits)
   const insights = useAppStore((state) => state.insights)
   const micLevel = useAppStore((state) => state.micLevel)
   const [recentEvents, setRecentEvents] = useState<PracticeEvent[]>([])
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     void listPracticeEvents(400).then(setRecentEvents)
   }, [hits.length, insights.length, micLevel])
+  useEffect(() => {
+    void loadUserProfile().then(setProfile)
+  }, [])
 
   const report = useMemo(() => buildCoachReport(recentEvents, hits), [recentEvents, hits])
   const sourceSummary = useMemo(() => formatSourceSummary(report.sourceSummary), [report.sourceSummary])
@@ -25,6 +30,16 @@ export function AICoachView() {
 
       <GlassCard className="space-y-3">
         <p className="text-sm text-zinc-200">{report.summary}</p>
+        {profile ? (
+          <div className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-3">
+            <p className="text-xs uppercase tracking-wide text-emerald-100">Profile Context</p>
+            <p className="mt-2 text-xs text-zinc-200">
+              {profile.experienceLevel} | {profile.drumSetup} | {profile.dailyMinutes} min/day | MIDI:{' '}
+              {profile.hasMidiDevice ? 'Yes' : 'No'}
+            </p>
+            <p className="mt-1 text-xs text-zinc-300">Goals: {profile.goals.join(', ')}</p>
+          </div>
+        ) : null}
         <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-3">
           <p className="text-xs uppercase tracking-wide text-cyan-100">Analysis Source</p>
           <p className="mt-2 text-xs text-zinc-200">
@@ -56,11 +71,16 @@ export function AICoachView() {
         <GlassCard>
           <SectionHeader title="Daily Plan" subtitle="Adaptive session split from current weak zones" />
           <div className="space-y-2">
-            {report.dailyPlan.map((line, index) => (
+            {report.dailyPlan.map((line, index) => {
+              const personalizedLine = profile
+                ? `${line} (Target window: ${Math.max(10, Math.round(profile.dailyMinutes / 4))}-${Math.max(20, Math.round(profile.dailyMinutes / 2))} min block).`
+                : line
+              return (
               <p key={`${line}-${index}`} className="text-sm text-zinc-300">
-                {index + 1}. {line}
+                {index + 1}. {personalizedLine}
               </p>
-            ))}
+              )
+            })}
           </div>
         </GlassCard>
 
