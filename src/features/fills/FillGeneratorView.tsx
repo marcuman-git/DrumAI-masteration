@@ -17,12 +17,18 @@ export function FillGeneratorView() {
   const [tempo, setTempo] = useState(120)
   const [pattern, setPattern] = useState<DrumNotationPattern>(() => generateFillPattern(4))
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const [renderError, setRenderError] = useState<string | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    renderDrumPattern(container, pattern)
+    try {
+      renderDrumPattern(container, pattern)
+      setRenderError(null)
+    } catch (error) {
+      setRenderError(error instanceof Error ? error.message : 'Could not render fill notation.')
+    }
   }, [pattern])
 
   function regenerate() {
@@ -38,6 +44,7 @@ export function FillGeneratorView() {
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <div ref={containerRef} className="min-h-[180px] overflow-x-auto rounded-lg bg-white" />
           </div>
+          {renderError ? <p className="text-xs text-rose-300">Notation render fallback: {renderError}</p> : null}
           <p className="font-mono text-sm tracking-[0.2em] text-cyan-100">{pattern.sticking?.join(' ')}</p>
           <div className="flex gap-2">
             <button
