@@ -1,13 +1,54 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Flame, Medal, Timer, Zap } from 'lucide-react'
+import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
+import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import { useAppStore } from '../../core/store/useAppStore'
+import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { ProgressRing } from '../../shared/components/ProgressRing'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
 export function DashboardView() {
-  const summary = useAppStore((state) => state.summary)
-  const skills = useAppStore((state) => state.skills)
+  const fallbackSummary = useAppStore((state) => state.summary)
+  const fallbackSkills = useAppStore((state) => state.skills)
   const achievements = useAppStore((state) => state.achievements)
+  const [events, setEvents] = useState<PracticeEvent[]>([])
+
+  useEffect(() => {
+    let mounted = true
+
+    const refresh = async () => {
+      const next = await listPracticeEvents(5000)
+      if (!mounted) return
+      setEvents(next)
+    }
+
+    void refresh()
+    const interval = window.setInterval(() => void refresh(), 5000)
+    const onFocus = () => void refresh()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      mounted = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
+
+  const metrics = useMemo(() => buildPracticeMetrics(events), [events])
+  const hasEventData = events.length > 0
+  const summary = hasEventData
+    ? {
+        todayGoalMinutes: metrics.todayGoalMinutes,
+        todayCompletedMinutes: metrics.todayCompletedMinutes,
+        streakDays: metrics.streakDays,
+        weeklyProgressPercent: metrics.weeklyProgressPercent,
+        totalPracticeHours: metrics.totalPracticeHours,
+        timingAccuracy: metrics.timingAccuracy,
+        bestBpm: metrics.bestBpm,
+      }
+    : fallbackSummary
+  const skills = hasEventData ? metrics.skills : fallbackSkills
 
   return (
     <div className="space-y-4">
@@ -69,7 +110,8 @@ export function DashboardView() {
           <SectionHeader title="Weekly Progress" />
           <p className="text-5xl font-semibold text-zinc-50">{summary.weeklyProgressPercent}%</p>
           <p className="text-sm text-zinc-400">
-            Recommended next exercise: <span className="text-cyan-200">Paradiddle Inversion @ 120 BPM</span>
+            Recommended next exercise:{' '}
+            <span className="text-cyan-200">{hasEventData ? metrics.recommendedExercise : 'Paradiddle Inversion @ 120 BPM'}</span>
           </p>
         </GlassCard>
       </section>
