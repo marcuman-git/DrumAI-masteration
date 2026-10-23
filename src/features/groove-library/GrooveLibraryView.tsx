@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Play, Plus } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Play, Plus, Square } from 'lucide-react'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
@@ -21,9 +21,30 @@ const grooves: GrooveItem[] = [
   { id: 'p1', style: 'Progressive', title: '7/8 Linear Grid', notes: 'Odd-meter linear phrase blocks', bpmRange: '90-160', focus: 'Odd-time phrasing' },
 ]
 
+function playGrooveHit(frequency: number) {
+  const context = new AudioContext()
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+
+  osc.frequency.value = frequency
+  osc.type = 'triangle'
+  gain.gain.setValueAtTime(0.0001, context.currentTime)
+  gain.gain.linearRampToValueAtTime(0.18, context.currentTime + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.09)
+
+  osc.connect(gain)
+  gain.connect(context.destination)
+  osc.start()
+  osc.stop(context.currentTime + 0.1)
+
+  window.setTimeout(() => void context.close(), 130)
+}
+
 export function GrooveLibraryView() {
   const [styleFilter, setStyleFilter] = useState<'All' | GrooveItem['style']>('All')
   const [playlist, setPlaylist] = useState<GrooveItem[]>([])
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const timerRef = useRef<number | null>(null)
 
   const filtered = useMemo(
     () => (styleFilter === 'All' ? grooves : grooves.filter((item) => item.style === styleFilter)),
@@ -35,6 +56,32 @@ export function GrooveLibraryView() {
       if (current.find((entry) => entry.id === item.id)) return current
       return [...current, item]
     })
+  }
+
+  function stopPreview() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    setPlayingId(null)
+  }
+
+  function previewGroove(item: GrooveItem) {
+    if (playingId === item.id) {
+      stopPreview()
+      return
+    }
+
+    stopPreview()
+    setPlayingId(item.id)
+
+    const stepFreq = [120, 850, 120, 650]
+    let step = 0
+
+    timerRef.current = window.setInterval(() => {
+      playGrooveHit(stepFreq[step % stepFreq.length])
+      step += 1
+    }, 170)
   }
 
   return (
@@ -73,8 +120,12 @@ export function GrooveLibraryView() {
                 </div>
                 <p className="mt-2 text-xs text-zinc-300">{item.notes}</p>
                 <div className="mt-3 flex gap-2">
-                  <button className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-xs text-cyan-100">
-                    <Play size={11} /> Preview
+                  <button
+                    type="button"
+                    onClick={() => previewGroove(item)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-xs text-cyan-100"
+                  >
+                    {playingId === item.id ? <Square size={11} /> : <Play size={11} />} {playingId === item.id ? 'Stop' : 'Preview'}
                   </button>
                   <button
                     type="button"
