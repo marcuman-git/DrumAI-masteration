@@ -205,6 +205,7 @@ export function RhythmDictationView() {
           </label>
           <p className="mt-3 text-xs text-zinc-400">Modes: Multiple choice, interactive notation, ear training.</p>
           <p className="mt-2 text-xs text-zinc-400">Pool size: {questions.length} quiz items in current track.</p>
+          <p className="mt-2 text-xs text-zinc-500">Question {(questionIndex % questions.length) + 1} of {questions.length}</p>
         </GlassCard>
       </div>
     </div>
