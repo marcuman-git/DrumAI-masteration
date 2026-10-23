@@ -6,6 +6,7 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 export function AICoachView() {
   const hits = useAppStore((state) => state.hits)
   const insights = useAppStore((state) => state.insights)
+  const micLevel = useAppStore((state) => state.micLevel)
 
   const generatedInsight = useMemo(() => {
     if (!hits.length) return 'Run a 6-minute timing session to unlock precise recommendation.'
@@ -22,6 +23,12 @@ export function AICoachView() {
 
       <GlassCard className="space-y-3">
         <p className="text-sm text-zinc-300">{generatedInsight}</p>
+        <div className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-3">
+          <p className="text-xs uppercase tracking-wide text-cyan-100">Analysis Source</p>
+          <p className="mt-2 text-xs text-zinc-200">
+            Timing Analyzer hits: {hits.length} samples | Live mic level: {micLevel}% | Stored coach insights: {insights.length}
+          </p>
+        </div>
         <div className="grid gap-3 md:grid-cols-4">
           <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-zinc-300">20% Timing</div>
           <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-zinc-300">30% Weak Hand</div>
