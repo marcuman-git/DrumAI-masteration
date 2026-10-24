@@ -60,9 +60,6 @@ const AICoachView = lazy(() =>
 const AnalyticsView = lazy(() =>
   import('../features/analytics/AnalyticsView').then((module) => ({ default: module.AnalyticsView })),
 )
-const CommunityView = lazy(() =>
-  import('../features/community/CommunityView').then((module) => ({ default: module.CommunityView })),
-)
 
 function ModuleLoadingState() {
   return (
@@ -104,8 +101,6 @@ function renderModule(moduleId: TrainingModuleId) {
       return <AICoachView />
     case 'analytics':
       return <AnalyticsView />
-    case 'community':
-      return <CommunityView />
     default: {
       const moduleData = MODULE_CONTENT[moduleId as keyof typeof MODULE_CONTENT]
       return moduleData ? (
@@ -117,6 +112,7 @@ function renderModule(moduleId: TrainingModuleId) {
 
 export default function App() {
   const activeModule = useAppStore((state) => state.activeModule)
+  const setActiveModule = useAppStore((state) => state.setActiveModule)
   const hydrate = useAppStore((state) => state.hydrate)
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
@@ -162,6 +158,12 @@ export default function App() {
       window.removeEventListener('offline', onOffline)
     }
   }, [])
+
+  useEffect(() => {
+    if (activeModule === 'community') {
+      setActiveModule('dashboard')
+    }
+  }, [activeModule, setActiveModule])
 
   const statusTone = useMemo(
     () => (online ? 'text-emerald-300 border-emerald-300/20' : 'text-amber-300 border-amber-300/20'),
