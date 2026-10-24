@@ -208,20 +208,17 @@ export function FillGeneratorView() {
 
           <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Musical Bar Chart</p>
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
-              {visualSteps.map((step) => {
-                return (
-                  <div
-                    key={`bar-${step.index}`}
-                    className={`relative flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded border text-xs transition ${stepClass(step)}`}
-                    title={`${step.noteLabel} | ${step.stickingLabel}`}
-                  >
-                    <span className="text-2xl leading-none">{step.symbol}</span>
-                    <span className="mt-1 font-mono text-base leading-none">{step.stickingLabel}</span>
-                    <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
-                  </div>
-                )
-              })}
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
+              {visualSteps.map((step) => (
+                <div
+                  key={`bar-${step.index}`}
+                  className={`relative flex min-h-[86px] flex-col items-center justify-center rounded-lg border px-3 py-3 text-xs transition ${stepClass(step)}`}
+                  title={`${step.noteLabel} | ${step.stickingLabel}`}
+                >
+                  <span className="text-2xl leading-none">{step.symbol}</span>
+                  <span className="mt-1 font-mono text-lg leading-none">{step.stickingLabel}</span>
+                </div>
+              ))}
             </div>
           </div>
 
