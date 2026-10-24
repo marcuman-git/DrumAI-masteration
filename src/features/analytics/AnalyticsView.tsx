@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { buildPersonalProgressSnapshot } from '../../core/services/analysis/personalProgress'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { clearPracticeEvents, listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import { useAppStore } from '../../core/store/useAppStore'
@@ -42,6 +43,7 @@ export function AnalyticsView() {
   }, [])
 
   const metrics = useMemo(() => buildPracticeMetrics(events), [events])
+  const progress = useMemo(() => buildPersonalProgressSnapshot(events), [events])
 
   async function handleResetData() {
     await clearPracticeEvents()
@@ -53,7 +55,7 @@ export function AnalyticsView() {
     <div className="space-y-4">
       <SectionHeader
         title="Analytics"
-        subtitle="Daily, weekly, monthly, and yearly performance intelligence with adaptive learning signals."
+        subtitle="[v0.4.7] Personal performance intelligence with quality, progression, and planning signals."
       />
 
       <div className="flex justify-end">
@@ -122,6 +124,35 @@ export function AnalyticsView() {
         ) : (
           <p className="text-sm text-zinc-400">No module time tracked yet. Start and stop sessions to populate this section.</p>
         )}
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Practice Quality Insights" subtitle="[v0.4.7] Personal quality and progression metrics." />
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Quality Score</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.qualityScore}%</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence (7d)</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.cadenceScore}%</p>
+            <p className="text-xs text-zinc-500">{progress.activeDaysLast7}/7 active days</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Focus Depth</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.focusScore}%</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.momentumScore}%</p>
+          </div>
+        </div>
+        <p className="text-sm text-zinc-300">
+          Completion discipline: <span className="text-cyan-200">{progress.completionRatio}%</span> start-to-stop closure.
+        </p>
+        <p className="text-sm text-zinc-300">
+          Next milestone: <span className="text-cyan-200">{progress.nextMilestone}</span>
+        </p>
       </GlassCard>
     </div>
   )
