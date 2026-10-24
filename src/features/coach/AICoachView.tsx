@@ -80,7 +80,7 @@ export function AICoachView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="AI Coach" subtitle="[v0.4.7] Personal coaching with progression planning and quality insights." />
+      <SectionHeader title="AI Coach" subtitle="[v0.4.9] Personal coaching with baseline-gated progression planning." />
 
       <GlassCard className="space-y-3">
         <p className="text-sm text-zinc-200">{report.summary}</p>
@@ -235,35 +235,50 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Personal Progression Planner" subtitle="[v0.4.7] Next milestone and weekly execution blueprint." />
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Quality</p>
-            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.qualityScore}%</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence</p>
-            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.cadenceScore}%</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
-            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.momentumScore}%</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Closure</p>
-            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.completionRatio}%</p>
-          </div>
-        </div>
-        <p className="text-sm text-zinc-300">
-          Next milestone: <span className="text-cyan-200">{personalProgress.nextMilestone}</span>
-        </p>
-        <div className="space-y-1">
-          {personalProgress.weeklyPlan.map((line, index) => (
-            <p key={`${line}-${index}`} className="text-sm text-zinc-300">
-              {index + 1}. {line}
+        <SectionHeader title="Personal Progression Planner" subtitle="[v0.4.9] Unlocks after baseline (7 days + 180 min)." />
+        {personalProgress.baselineReady ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Quality</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.qualityScore}%</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.cadenceScore}%</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.momentumScore}%</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Closure</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.completionRatio}%</p>
+              </div>
+            </div>
+            <p className="text-sm text-zinc-300">
+              Next milestone: <span className="text-cyan-200">{personalProgress.nextMilestone}</span>
             </p>
-          ))}
-        </div>
+            <div className="space-y-1">
+              {personalProgress.weeklyPlan.map((line, index) => (
+                <p key={`${line}-${index}`} className="text-sm text-zinc-300">
+                  {index + 1}. {line}
+                </p>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
+            <p className="text-sm text-amber-100">Collecting baseline data before generating full personalized progression.</p>
+            <p className="text-sm text-zinc-300">
+              Practice time: {personalProgress.baselineMinutesProgress}/{personalProgress.baselineRequiredMinutes} min
+            </p>
+            <p className="text-sm text-zinc-300">
+              Timeline: {personalProgress.baselineDaysProgress}/{personalProgress.baselineRequiredDays} days
+            </p>
+            <p className="text-xs text-zinc-400">Starter focus: keep daily timing + reading drills until thresholds are met.</p>
+          </div>
+        )}
       </GlassCard>
 
       <div className="grid gap-3 md:grid-cols-2">
