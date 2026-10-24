@@ -7,6 +7,7 @@ import {
   type AdaptivePlanState,
 } from '../../core/services/analysis/adaptiveScheduler'
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
+import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { clearAdaptivePlan, loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
@@ -33,6 +34,7 @@ export function AICoachView() {
 
   const report = useMemo(() => buildCoachReport(recentEvents, hits), [recentEvents, hits])
   const metrics = useMemo(() => buildPracticeMetrics(recentEvents), [recentEvents])
+  const gamification = useMemo(() => buildGamificationSnapshot(recentEvents), [recentEvents])
   const sourceSummary = useMemo(() => formatSourceSummary(report.sourceSummary), [report.sourceSummary])
   const activeDay = adaptivePlan?.dailyByDate[todayKey()] ?? null
 
@@ -191,6 +193,27 @@ export function AICoachView() {
         ) : (
           <p className="text-sm text-zinc-400">No adaptive plan yet. Save onboarding profile and rebuild today.</p>
         )}
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Gamification Pulse" subtitle="Phase 4 Step 3 connection to event-derived XP and quests." />
+        <p className="text-sm text-zinc-200">
+          Level {gamification.level} | Total XP {gamification.totalXp} | Today XP {gamification.todayXp} | Next level in{' '}
+          {gamification.xpToNextLevel} XP
+        </p>
+        <div className="space-y-2">
+          {gamification.quests.map((quest) => (
+            <div key={quest.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-zinc-100">{quest.title}</span>
+                <span className={quest.completed ? 'text-emerald-200' : 'text-zinc-400'}>
+                  {quest.progress}/{quest.target}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">{quest.moduleHint}</p>
+            </div>
+          ))}
+        </div>
       </GlassCard>
 
       <div className="grid gap-3 md:grid-cols-2">
