@@ -34,9 +34,9 @@ export function ProgressRing({ value, size = 112, stroke = 10, label }: Progress
             strokeDashoffset={dashOffset}
           />
         </svg>
-        <div className="absolute inset-0 grid place-items-center text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <p className="text-xl font-semibold leading-none text-zinc-50">{value}%</p>
-          <p className="mt-1 text-[11px] leading-none text-zinc-400">{label}</p>
+          <p className="mt-0.5 text-[11px] leading-none text-zinc-400">{label}</p>
         </div>
       </div>
       <span className="sr-only">
