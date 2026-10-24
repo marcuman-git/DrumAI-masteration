@@ -234,10 +234,11 @@ export function MetronomeView() {
           <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
+              key={`${isRunning ? 'run' : 'stop'}-${bpm}`}
               animate={{ rotate: isRunning ? [-28, 28] : 0 }}
               transition={{
                 duration: Math.max(0.25, 60 / bpm),
-                ease: 'easeInOut',
+                ease: [0.45, 0, 0.55, 1],
                 repeat: isRunning ? Infinity : 0,
                 repeatType: 'reverse',
               }}
