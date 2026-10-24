@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Flame, Medal, Timer, Zap } from 'lucide-react'
+import { ensureTodayPlan, todayKey, togglePlanBlock, type AdaptivePlanState } from '../../core/services/analysis/adaptiveScheduler'
+import { buildCoachReport } from '../../core/services/analysis/coachEngine'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
+import { loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
@@ -12,9 +15,11 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 export function DashboardView() {
   const fallbackSummary = useAppStore((state) => state.summary)
   const fallbackSkills = useAppStore((state) => state.skills)
+  const hits = useAppStore((state) => state.hits)
   const achievements = useAppStore((state) => state.achievements)
   const [events, setEvents] = useState<PracticeEvent[]>([])
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [adaptivePlan, setAdaptivePlan] = useState<AdaptivePlanState | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -42,6 +47,7 @@ export function DashboardView() {
   }, [])
 
   const metrics = useMemo(() => buildPracticeMetrics(events), [events])
+  const coachReport = useMemo(() => buildCoachReport(events, hits), [events, hits])
   const hasEventData = events.length > 0
   const summary = hasEventData
     ? {
@@ -55,6 +61,30 @@ export function DashboardView() {
       }
     : fallbackSummary
   const skills = hasEventData ? metrics.skills : fallbackSkills
+  const activeDay = adaptivePlan?.dailyByDate[todayKey()] ?? null
+
+  useEffect(() => {
+    if (!profile) return
+    let mounted = true
+    const syncPlan = async () => {
+      const stored = await loadAdaptivePlan()
+      const next = ensureTodayPlan(stored, { profile, metrics, report: coachReport })
+      await saveAdaptivePlan(next)
+      if (!mounted) return
+      setAdaptivePlan(next)
+    }
+    void syncPlan()
+    return () => {
+      mounted = false
+    }
+  }, [profile, metrics, coachReport])
+
+  async function toggleBlock(blockId: string) {
+    if (!adaptivePlan) return
+    const next = togglePlanBlock(adaptivePlan, todayKey(), blockId)
+    setAdaptivePlan(next)
+    await saveAdaptivePlan(next)
+  }
 
   return (
     <div className="space-y-4">
@@ -136,6 +166,46 @@ export function DashboardView() {
           </>
         ) : (
           <p className="text-sm text-zinc-400">No onboarding profile saved yet. Use the header button to create one.</p>
+        )}
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Adaptive Plan" subtitle="Daily auto-scheduled blocks based on profile, metrics, and coach signals." />
+        {activeDay ? (
+          <>
+            <p className="text-sm text-zinc-200">
+              Today: {activeDay.completedMinutes}/{activeDay.targetMinutes} min ({activeDay.completionPercent}%)
+            </p>
+            <div className="space-y-2">
+              {activeDay.blocks.map((block, index) => (
+                <div key={block.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-100">{block.title}</p>
+                      <p className="text-xs text-zinc-400">
+                        {block.minutes} min | {block.moduleHint}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">{block.note}</p>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid={`adaptive-block-toggle-${index}`}
+                      onClick={() => void toggleBlock(block.id)}
+                      className={`rounded-lg border px-2 py-1 text-xs ${
+                        block.completed
+                          ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-100'
+                          : 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
+                      }`}
+                    >
+                      {block.completed ? 'Completed' : 'Mark Done'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-zinc-400">Complete onboarding to generate your adaptive daily schedule.</p>
         )}
       </GlassCard>
 
