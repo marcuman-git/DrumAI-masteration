@@ -24,6 +24,11 @@ test('phase 3 module regressions', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Home Dashboard')).toBeVisible()
   await expect(page.getByRole('button', { name: /rhythm reading/i })).toBeVisible()
+  await expect(page.getByText('Adaptive Plan')).toBeVisible()
+  await expect(page.getByTestId('adaptive-block-toggle-0')).toBeVisible()
+  await page.getByTestId('adaptive-block-toggle-0').click()
+  await page.reload()
+  await expect(page.getByTestId('adaptive-block-toggle-0')).toHaveText(/completed/i)
 
   await page.getByRole('button', { name: /rhythm reading/i }).click()
   await expect(page.getByText('Rhythm Reading')).toBeVisible()
