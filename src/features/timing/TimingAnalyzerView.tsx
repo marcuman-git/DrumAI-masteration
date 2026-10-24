@@ -340,6 +340,55 @@ export function TimingAnalyzerView() {
     }
   }, [hits, drillMode])
 
+  const handTrend = useMemo(() => {
+    const pattern = drillPatterns[drillMode]
+    const left: number[] = []
+    const right: number[] = []
+
+    hits.forEach((hit, index) => {
+      if (hit.quality === 'missed') return
+      const hand = pattern[index % pattern.length]
+      if (hand === 'L') left.push(hit.deviationMs)
+      else right.push(hit.deviationMs)
+    })
+
+    const avgAbs = (values: number[]) => {
+      if (!values.length) return 0
+      return Math.round(values.reduce((acc, value) => acc + Math.abs(value), 0) / values.length)
+    }
+
+    const consistencyFor = (values: number[]) => {
+      if (values.length < 2) return 0
+      const mean = values.reduce((acc, value) => acc + value, 0) / values.length
+      const variance = values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / values.length
+      return Math.max(0, Math.round(100 - Math.sqrt(variance)))
+    }
+
+    const leftAvgAbs = avgAbs(left)
+    const rightAvgAbs = avgAbs(right)
+    const leftConsistency = consistencyFor(left)
+    const rightConsistency = consistencyFor(right)
+    const weakerHand = leftAvgAbs >= rightAvgAbs ? 'Left' : 'Right'
+    const weakerGap = Math.abs(leftAvgAbs - rightAvgAbs)
+
+    const recommendation =
+      weakerGap < 3
+        ? 'Hands are balanced. Run tempo ladder (+2 BPM) for endurance.'
+        : weakerHand === 'Left'
+          ? `Left hand trails by ~${weakerGap}ms. Run L-led singles at 60 BPM for 8 minutes.`
+          : `Right hand trails by ~${weakerGap}ms. Run R-led singles at 60 BPM for 8 minutes.`
+
+    return {
+      leftAvgAbs,
+      rightAvgAbs,
+      leftConsistency,
+      rightConsistency,
+      weakerHand,
+      weakerGap,
+      recommendation,
+    }
+  }, [hits, drillMode])
+
   const expectedSequence = useMemo(() => {
     const pattern = drillPatterns[drillMode]
     return Array.from({ length: 8 }, (_, index) => pattern[(hits.length + index) % pattern.length])
@@ -370,7 +419,7 @@ export function TimingAnalyzerView() {
     <div className="space-y-4">
       <SectionHeader
         title="Timing Analyzer"
-        subtitle="Microphone-first onset detection for practice pad/snare hit consistency and hand timing balance."
+        subtitle="[v0.5.0] Microphone-first hit consistency, per-hand trend analysis, and drill prescriptions."
         right={
           <div className="flex gap-2">
             <button
@@ -432,6 +481,28 @@ export function TimingAnalyzerView() {
               Noise floor {calibration.noiseFloor}% | Peak {calibration.peak}% | {new Date(calibration.calibratedAt).toLocaleTimeString()}
             </p>
           ) : null}
+        </GlassCard>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <GlassCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Left Hand Trend</p>
+          <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.leftAvgAbs} ms</p>
+          <p className="text-xs text-zinc-400">Avg absolute deviation</p>
+          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.leftConsistency}%</p>
+        </GlassCard>
+        <GlassCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Right Hand Trend</p>
+          <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.rightAvgAbs} ms</p>
+          <p className="text-xs text-zinc-400">Avg absolute deviation</p>
+          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.rightConsistency}%</p>
+        </GlassCard>
+        <GlassCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Drill Prescription</p>
+          <p className="mt-2 text-sm text-zinc-200">{handTrend.recommendation}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Weaker hand: {handTrend.weakerHand} | Gap: {handTrend.weakerGap} ms
+          </p>
         </GlassCard>
       </section>
 
