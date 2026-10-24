@@ -25,5 +25,4 @@ export const MODULES: ModuleItem[] = [
   { id: 'song-practice', label: 'Song Practice', category: 'Performance' },
   { id: 'coach', label: 'AI Coach', category: 'System' },
   { id: 'analytics', label: 'Analytics', category: 'System' },
-  { id: 'community', label: 'Community', category: 'System' },
 ]
