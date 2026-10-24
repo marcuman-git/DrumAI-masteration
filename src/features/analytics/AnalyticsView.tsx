@@ -100,6 +100,29 @@ export function AnalyticsView() {
           </LineChart>
         </ResponsiveContainer>
       </GlassCard>
+
+      <GlassCard>
+        <SectionHeader title="Module Usage" subtitle="Practice distribution by module (alphabetical)." />
+        {metrics.moduleUsage.length ? (
+          <div className="space-y-2">
+            {metrics.moduleUsage.map((item) => (
+              <div key={item.moduleId} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-100">{item.moduleId}</span>
+                  <span className="text-zinc-300">
+                    {item.percent}% | {item.minutes} min
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div className="h-full rounded-full bg-cyan-400" style={{ width: `${item.percent}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-400">No module time tracked yet. Start and stop sessions to populate this section.</p>
+        )}
+      </GlassCard>
     </div>
   )
 }
