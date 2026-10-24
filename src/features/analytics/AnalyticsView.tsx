@@ -55,7 +55,7 @@ export function AnalyticsView() {
     <div className="space-y-4">
       <SectionHeader
         title="Analytics"
-        subtitle="[v0.4.7] Personal performance intelligence with quality, progression, and planning signals."
+        subtitle="[v0.4.9] Personal performance intelligence with baseline-gated progression planning."
       />
 
       <div className="flex justify-end">
@@ -127,32 +127,49 @@ export function AnalyticsView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Practice Quality Insights" subtitle="[v0.4.7] Personal quality and progression metrics." />
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Quality Score</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.qualityScore}%</p>
+        <SectionHeader title="Practice Quality Insights" subtitle="[v0.4.9] Baseline-gated personal quality and progression metrics." />
+        {progress.baselineReady ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Quality Score</p>
+                <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.qualityScore}%</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence (7d)</p>
+                <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.cadenceScore}%</p>
+                <p className="text-xs text-zinc-500">{progress.activeDaysLast7}/7 active days</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Focus Depth</p>
+                <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.focusScore}%</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
+                <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.momentumScore}%</p>
+              </div>
+            </div>
+            <p className="text-sm text-zinc-300">
+              Completion discipline: <span className="text-cyan-200">{progress.completionRatio}%</span> start-to-stop closure.
+            </p>
+            <p className="text-sm text-zinc-300">
+              Next milestone: <span className="text-cyan-200">{progress.nextMilestone}</span>
+            </p>
+          </>
+        ) : (
+          <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
+            <p className="text-sm text-amber-100">Collecting baseline data before full progression scoring.</p>
+            <p className="text-sm text-zinc-300">
+              Practice time: {progress.baselineMinutesProgress}/{progress.baselineRequiredMinutes} min
+            </p>
+            <p className="text-sm text-zinc-300">
+              Timeline: {progress.baselineDaysProgress}/{progress.baselineRequiredDays} days
+            </p>
+            <p className="text-xs text-zinc-400">
+              Once both thresholds are met, Quality/Momentum/Focus scoring and milestone guidance unlock automatically.
+            </p>
           </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence (7d)</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.cadenceScore}%</p>
-            <p className="text-xs text-zinc-500">{progress.activeDaysLast7}/7 active days</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Focus Depth</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.focusScore}%</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.momentumScore}%</p>
-          </div>
-        </div>
-        <p className="text-sm text-zinc-300">
-          Completion discipline: <span className="text-cyan-200">{progress.completionRatio}%</span> start-to-stop closure.
-        </p>
-        <p className="text-sm text-zinc-300">
-          Next milestone: <span className="text-cyan-200">{progress.nextMilestone}</span>
-        </p>
+        )}
       </GlassCard>
     </div>
   )
