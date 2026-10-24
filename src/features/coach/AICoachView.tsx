@@ -6,6 +6,7 @@ import {
   todayKey,
   type AdaptivePlanState,
 } from '../../core/services/analysis/adaptiveScheduler'
+import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
 import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
@@ -35,6 +36,7 @@ export function AICoachView() {
   const report = useMemo(() => buildCoachReport(recentEvents, hits), [recentEvents, hits])
   const metrics = useMemo(() => buildPracticeMetrics(recentEvents), [recentEvents])
   const gamification = useMemo(() => buildGamificationSnapshot(recentEvents), [recentEvents])
+  const challenges = useMemo(() => buildChallengesSnapshot(recentEvents), [recentEvents])
   const sourceSummary = useMemo(() => formatSourceSummary(report.sourceSummary), [report.sourceSummary])
   const activeDay = adaptivePlan?.dailyByDate[todayKey()] ?? null
 
@@ -214,6 +216,20 @@ export function AICoachView() {
             </div>
           ))}
         </div>
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Challenges + Achievements v2" subtitle="Phase 4 Step 4 coaching alignment signals." />
+        <p className="text-sm text-zinc-300">
+          Weekly completed: {challenges.weeklyChallenges.filter((challenge) => challenge.completed).length}/
+          {challenges.weeklyChallenges.length} | Seasonal completed:{' '}
+          {challenges.seasonalChallenges.filter((challenge) => challenge.completed).length}/
+          {challenges.seasonalChallenges.length}
+        </p>
+        <p className="text-sm text-zinc-300">
+          Achievements unlocked: {challenges.achievements.filter((achievement) => achievement.unlocked).length}/
+          {challenges.achievements.length}
+        </p>
       </GlassCard>
 
       <div className="grid gap-3 md:grid-cols-2">
