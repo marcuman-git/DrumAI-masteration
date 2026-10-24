@@ -71,7 +71,7 @@ export function MetronomeView() {
     const interval = window.setInterval(() => {
       const randomBpm = Math.floor(Math.random() * 51) + 50
       applyBpm(randomBpm)
-    }, 4000)
+    }, 20000)
 
     return () => window.clearInterval(interval)
   }, [randomTempo, isRunning])
@@ -173,7 +173,7 @@ export function MetronomeView() {
     <div className="space-y-4">
       <SectionHeader
         title="Smart Metronome"
-        subtitle="[v0.4.7] Advanced click engine with random/increasing tempo modes, accents, swing, and visual pulse."
+        subtitle="[v0.4.9] Advanced click engine with random/increasing tempo modes, accents, swing, and visual pulse."
       />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -278,22 +278,24 @@ export function MetronomeView() {
             />
           </label>
 
-          <button
-            type="button"
-            onClick={handleToggleRandomTempo}
-            className="inline-flex items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
-          >
-            <WandSparkles size={14} />
-            Random Tempo (50-100) {randomTempo ? 'On' : 'Off'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleToggleRandomTempo}
+              className="inline-flex items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
+            >
+              <WandSparkles size={14} />
+              Random Tempo (50-100) {randomTempo ? 'On' : 'Off'}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleToggleIncreasingTempo}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100"
-          >
-            Increasing Tempo (+2 / 20s) {increasingTempo ? 'On' : 'Off'}
-          </button>
+            <button
+              type="button"
+              onClick={handleToggleIncreasingTempo}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100"
+            >
+              Increasing Tempo (+2 / 20s) {increasingTempo ? 'On' : 'Off'}
+            </button>
+          </div>
         </GlassCard>
 
         <GlassCard className="flex flex-col items-center justify-center gap-3">
