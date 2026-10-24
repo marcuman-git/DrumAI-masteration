@@ -77,7 +77,7 @@ export function MetronomeView() {
   useEffect(() => {
     if (!isRunning) return
     setAnimationSeed((value) => value + 1)
-  }, [bpm, isRunning])
+  }, [bpm, subdivision, isRunning])
 
   useEffect(() => {
     return () => {
@@ -109,6 +109,19 @@ export function MetronomeView() {
     }
   }
 
+  function applySubdivision(nextSubdivision: number) {
+    const clamped = Math.min(7, Math.max(1, nextSubdivision))
+    setSubdivision(clamped)
+    if (isRunning) {
+      void trackPracticeEvent(
+        'metronome',
+        'score',
+        { action: 'subdivision-change-live', subdivision: clamped, bpm },
+        sessionIdRef.current ?? undefined,
+      )
+    }
+  }
+
   function handleStartStop() {
     if (!isRunning) {
       const sessionId = startPracticeSession('metronome', { bpm, subdivision, swing, humanizeMs: humanize })
@@ -128,7 +141,7 @@ export function MetronomeView() {
     <div className="space-y-4">
       <SectionHeader
         title="Smart Metronome"
-        subtitle="[v0.4.4] Advanced click engine with accents, random tempo, swing, humanization, and visual pulse."
+        subtitle="[v0.4.6] Advanced click engine with accents, random tempo, swing, humanization, and visual pulse."
       />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -183,7 +196,7 @@ export function MetronomeView() {
               Subdivision
               <select
                 value={subdivision}
-                onChange={(event) => setSubdivision(Number(event.target.value))}
+                onChange={(event) => applySubdivision(Number(event.target.value))}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
               >
                 {subdivisionOptions.map((option) => (
@@ -248,10 +261,10 @@ export function MetronomeView() {
           <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
-              key={`${isRunning ? 'run' : 'stop'}-${bpm}-${animationSeed}`}
+              key={`${isRunning ? 'run' : 'stop'}-${bpm}-${subdivision}-${animationSeed}`}
               animate={{ rotate: isRunning ? [-28, 28] : 0 }}
               transition={{
-                duration: Math.max(0.25, 60 / bpm),
+                duration: Math.max(0.12, 60 / (bpm * subdivision)),
                 ease: [0.45, 0, 0.55, 1],
                 repeat: isRunning ? Infinity : 0,
                 repeatType: 'reverse',
