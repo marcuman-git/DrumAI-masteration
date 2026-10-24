@@ -2,12 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import {
-  addCommunityFriend,
   buildCommunityLeaderboard,
-  createCommunityChallenge,
   getCommunityFoundation,
   setCommunityProfileName,
-  shareCommunityGroove,
   updateCommunityChallengeStatus,
   type CommunityFoundationState,
 } from '../../core/services/storage/communityFoundation'
@@ -18,8 +15,8 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 export function CommunityView() {
   const [events, setEvents] = useState<PracticeEvent[]>([])
   const [foundation, setFoundation] = useState<CommunityFoundationState>(() => getCommunityFoundation())
-  const [friendName, setFriendName] = useState('')
   const [profileNameInput, setProfileNameInput] = useState(foundation.profileName)
+  const [leaderboardMode, setLeaderboardMode] = useState<'all-time' | 'session'>('all-time')
   const [status, setStatus] = useState('Local community foundation ready.')
 
   useEffect(() => {
@@ -38,28 +35,11 @@ export function CommunityView() {
   }, [])
 
   const leaderboard = useMemo(() => buildCommunityLeaderboard(events, foundation), [events, foundation])
+  const filteredLeaderboard = useMemo(() => {
+    if (leaderboardMode === 'all-time') return leaderboard
+    return [...leaderboard].sort((a, b) => b.accuracy - a.accuracy || b.bpm - a.bpm)
+  }, [leaderboard, leaderboardMode])
   const challengeSignals = useMemo(() => buildChallengesSnapshot(events), [events])
-
-  function handleAddFriend() {
-    if (!friendName.trim()) return
-    const next = addCommunityFriend(friendName)
-    setFoundation(next)
-    setFriendName('')
-    setStatus(`Friend added: ${next.friends[0]?.name ?? 'Unknown'}`)
-  }
-
-  function handleCreateInvite() {
-    const endsAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    const next = createCommunityChallenge('Timing Duel Invite', 'Score 100 clean hits @ 60 BPM', endsAt)
-    setFoundation(next)
-    setStatus('Challenge invite created.')
-  }
-
-  function handleShareGroove() {
-    const next = shareCommunityGroove('Pocket Builder Loop', 'Rock')
-    setFoundation(next)
-    setStatus('Groove shared with community.')
-  }
 
   function handleSaveProfileName() {
     const next = setCommunityProfileName(profileNameInput)
@@ -69,7 +49,7 @@ export function CommunityView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Community" subtitle="[v0.4.5] Local friend system, challenge invites, and leaderboard scaffold." />
+      <SectionHeader title="Community" subtitle="[v0.4.6] Leaderboard filters + streamlined social dashboard." />
 
       <div className="grid gap-3 lg:grid-cols-[1.3fr_2fr]">
         <GlassCard className="space-y-3">
@@ -90,55 +70,48 @@ export function CommunityView() {
             Save Name
           </button>
 
-          <label className="text-xs text-zinc-300">
-            Add Friend
-            <input
-              value={friendName}
-              onChange={(event) => setFriendName(event.target.value)}
-              placeholder="Friend name"
-              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleAddFriend}
-            className="rounded-lg border border-violet-300/35 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
-          >
-            Add Friend
-          </button>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleCreateInvite}
-              className="rounded-lg border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-xs text-amber-100"
-            >
-              Create Invite
-            </button>
-            <button
-              type="button"
-              onClick={handleShareGroove}
-              className="rounded-lg border border-emerald-300/35 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100"
-            >
-              Share Groove
-            </button>
-          </div>
+          <p className="text-xs text-zinc-500">
+            Friend/challenge/groove creation controls are hidden in this streamlined mode.
+          </p>
 
           <p className="text-xs text-zinc-400">{status}</p>
         </GlassCard>
 
         <div className="grid gap-3 md:grid-cols-2">
           <GlassCard>
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Leaderboard Scaffold</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wide text-zinc-400">Leaderboard Scaffold</p>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardMode('all-time')}
+                  className={`rounded-md px-2 py-1 text-[11px] ${
+                    leaderboardMode === 'all-time' ? 'bg-cyan-300/20 text-cyan-100' : 'bg-white/5 text-zinc-300'
+                  }`}
+                >
+                  All-time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardMode('session')}
+                  className={`rounded-md px-2 py-1 text-[11px] ${
+                    leaderboardMode === 'session' ? 'bg-cyan-300/20 text-cyan-100' : 'bg-white/5 text-zinc-300'
+                  }`}
+                >
+                  Session
+                </button>
+              </div>
+            </div>
             <ul className="mt-2 space-y-2 text-sm">
-              {leaderboard.map((entry, index) => (
+              {filteredLeaderboard.map((entry, index) => (
                 <li
                   key={entry.id}
                   className={`rounded-lg border p-2 ${
                     entry.isSelf ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-white/10 bg-black/20'
                   }`}
                 >
-                  #{index + 1} {entry.name} | Lv {entry.level} | {entry.accuracy}% | {entry.bpm} BPM | {entry.xp} XP
+                  #{index + 1} {entry.name} | Lv {entry.level} | {entry.accuracy}% | {entry.bpm} BPM | {entry.xp} XP |{' '}
+                  {entry.minutes} min
                 </li>
               ))}
             </ul>
