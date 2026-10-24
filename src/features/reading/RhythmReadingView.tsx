@@ -29,7 +29,7 @@ const patterns: DrumNotationPattern[] = [
 ]
 
 function stepInfo(token: string): RhythmStep {
-  const note = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hat'
+  const note = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hi-hat'
   const durationUnits = token.includes('/16') ? 1 : token.includes('/8') ? 2 : 4
   const symbol = token.includes('/16') ? '♬' : token.includes('/8') ? '♪' : '♩'
   return { token, note, durationUnits, symbol }
@@ -76,21 +76,81 @@ export function RhythmReadingView() {
   }
 
   function scheduleNote(context: AudioContext, token: string, when: number) {
-    const osc = context.createOscillator()
+    if (token.includes('f4')) {
+      const osc = context.createOscillator()
+      const gain = context.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(140, when)
+      osc.frequency.exponentialRampToValueAtTime(55, when + 0.12)
+      gain.gain.setValueAtTime(0.0001, when)
+      gain.gain.linearRampToValueAtTime(0.9, when + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.16)
+      osc.connect(gain)
+      gain.connect(context.destination)
+      osc.start(when)
+      osc.stop(when + 0.18)
+      return
+    }
+
+    if (token.includes('d4')) {
+      const noiseBuffer = context.createBuffer(1, context.sampleRate * 0.2, context.sampleRate)
+      const data = noiseBuffer.getChannelData(0)
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = Math.random() * 2 - 1
+      }
+
+      const noise = context.createBufferSource()
+      noise.buffer = noiseBuffer
+      const noiseFilter = context.createBiquadFilter()
+      noiseFilter.type = 'bandpass'
+      noiseFilter.frequency.value = 1800
+      const noiseGain = context.createGain()
+      noiseGain.gain.setValueAtTime(0.0001, when)
+      noiseGain.gain.linearRampToValueAtTime(0.55, when + 0.005)
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.14)
+
+      const tone = context.createOscillator()
+      tone.type = 'triangle'
+      tone.frequency.value = 190
+      const toneGain = context.createGain()
+      toneGain.gain.setValueAtTime(0.0001, when)
+      toneGain.gain.linearRampToValueAtTime(0.18, when + 0.004)
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.1)
+
+      noise.connect(noiseFilter)
+      noiseFilter.connect(noiseGain)
+      noiseGain.connect(context.destination)
+      tone.connect(toneGain)
+      toneGain.connect(context.destination)
+
+      noise.start(when)
+      noise.stop(when + 0.15)
+      tone.start(when)
+      tone.stop(when + 0.12)
+      return
+    }
+
+    const noiseBuffer = context.createBuffer(1, context.sampleRate * 0.08, context.sampleRate)
+    const data = noiseBuffer.getChannelData(0)
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = Math.random() * 2 - 1
+    }
+
+    const source = context.createBufferSource()
+    source.buffer = noiseBuffer
+    const highpass = context.createBiquadFilter()
+    highpass.type = 'highpass'
+    highpass.frequency.value = 7000
     const gain = context.createGain()
-
-    osc.type = token.includes('d4') ? 'triangle' : token.includes('f4') ? 'square' : 'sine'
-    osc.frequency.value = token.includes('d4') ? 220 : token.includes('f4') ? 120 : 880
-
     gain.gain.setValueAtTime(0.0001, when)
-    gain.gain.linearRampToValueAtTime(0.22, when + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.09)
+    gain.gain.linearRampToValueAtTime(0.45, when + 0.002)
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05)
 
-    osc.connect(gain)
+    source.connect(highpass)
+    highpass.connect(gain)
     gain.connect(context.destination)
-
-    osc.start(when)
-    osc.stop(when + 0.1)
+    source.start(when)
+    source.stop(when + 0.06)
   }
 
   function handlePlayback() {
