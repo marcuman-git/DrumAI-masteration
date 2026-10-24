@@ -1,7 +1,16 @@
 import { expect, test } from '@playwright/test'
 
+async function dismissOnboardingIfVisible(page: import('@playwright/test').Page) {
+  const cancel = page.getByRole('button', { name: /cancel/i })
+  const isVisible = await cancel.isVisible().catch(() => false)
+  if (isVisible) {
+    await cancel.click()
+  }
+}
+
 test('phase 3 module regressions', async ({ page }) => {
   await page.goto('/')
+  await dismissOnboardingIfVisible(page)
   await expect(page.getByText('Home Dashboard')).toBeVisible()
 
   await page.getByRole('button', { name: /rhythm reading/i }).click()
