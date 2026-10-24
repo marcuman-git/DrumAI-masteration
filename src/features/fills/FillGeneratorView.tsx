@@ -82,6 +82,7 @@ export function FillGeneratorView() {
   const [activeStep, setActiveStep] = useState<number | null>(null)
   const [playedSteps, setPlayedSteps] = useState<number[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
+  const [loopPlayback, setLoopPlayback] = useState(false)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const sessionIdRef = useRef<string | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
@@ -117,16 +118,23 @@ export function FillGeneratorView() {
     sessionIdRef.current = sessionId
 
     try {
-      await playPattern(
-        pattern,
-        tempo,
-        (index) => {
-          setActiveStep(index)
-          setPlayedSteps((prev) => (prev.includes(index) ? prev : [...prev, index]))
-        },
-        controller.signal,
-      )
-      void trackPracticeEvent('fills', 'score', { action: 'play-complete', tempo, noteCount: pattern.notes.length }, sessionId)
+      do {
+        await playPattern(
+          pattern,
+          tempo,
+          (index) => {
+            setActiveStep(index)
+            setPlayedSteps((prev) => (prev.includes(index) ? prev : [...prev, index]))
+          },
+          controller.signal,
+        )
+        void trackPracticeEvent(
+          'fills',
+          'score',
+          { action: loopPlayback ? 'loop-pass-complete' : 'play-complete', tempo, noteCount: pattern.notes.length },
+          sessionId,
+        )
+      } while (loopPlayback && !controller.signal.aborted)
     } catch {
       setPlaybackError('Playback failed for this fill. You can regenerate and retry.')
       void trackPracticeEvent('fills', 'mistake', { action: 'playback-error' }, sessionId)
@@ -178,7 +186,7 @@ export function FillGeneratorView() {
     <div className="space-y-4">
       <SectionHeader
         title="Fill Generator"
-        subtitle="Chart view with note/rest highlighting, start-hand control, and playback verification."
+        subtitle="[v0.4.4] Chart view with note/rest highlighting, start-hand control, and playback verification."
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -245,6 +253,17 @@ export function FillGeneratorView() {
               className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Square size={12} /> Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoopPlayback((value) => !value)}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                loopPlayback
+                  ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100'
+                  : 'border-white/15 bg-white/5 text-zinc-200'
+              }`}
+            >
+              Loop {loopPlayback ? 'On' : 'Off'}
             </button>
           </div>
           <p className="text-xs text-zinc-400">Playback progress: {playProgress}%</p>
