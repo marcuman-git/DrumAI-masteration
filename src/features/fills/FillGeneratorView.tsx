@@ -86,6 +86,7 @@ export function FillGeneratorView() {
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const sessionIdRef = useRef<string | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
+  const loopPlaybackRef = useRef(loopPlayback)
 
   const visualSteps = useMemo(() => buildSteps(pattern, startHand), [pattern, startHand])
   function regenerate() {
@@ -131,10 +132,14 @@ export function FillGeneratorView() {
         void trackPracticeEvent(
           'fills',
           'score',
-          { action: loopPlayback ? 'loop-pass-complete' : 'play-complete', tempo, noteCount: pattern.notes.length },
+          {
+            action: loopPlaybackRef.current ? 'loop-pass-complete' : 'play-complete',
+            tempo,
+            noteCount: pattern.notes.length,
+          },
           sessionId,
         )
-      } while (loopPlayback && !controller.signal.aborted)
+      } while (loopPlaybackRef.current && !controller.signal.aborted)
     } catch {
       setPlaybackError('Playback failed for this fill. You can regenerate and retry.')
       void trackPracticeEvent('fills', 'mistake', { action: 'playback-error' }, sessionId)
@@ -165,6 +170,10 @@ export function FillGeneratorView() {
   }, [startHand])
 
   useEffect(() => {
+    loopPlaybackRef.current = loopPlayback
+  }, [loopPlayback])
+
+  useEffect(() => {
     return () => {
       controllerRef.current?.abort()
       if (sessionIdRef.current) {
@@ -186,7 +195,7 @@ export function FillGeneratorView() {
     <div className="space-y-4">
       <SectionHeader
         title="Fill Generator"
-        subtitle="[v0.4.4] Chart view with note/rest highlighting, start-hand control, and playback verification."
+        subtitle="[v0.4.6] Chart view with note/rest highlighting, start-hand control, and playback verification."
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
