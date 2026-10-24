@@ -214,7 +214,7 @@ export function DashboardView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Daily Quests + XP" subtitle="Phase 4 Step 3: event-based gamification progression." />
+        <SectionHeader title="Daily Quests + XP" subtitle="[v0.4.3] Event-based gamification progression." />
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-white/10 bg-black/20 p-3">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Level</p>
@@ -261,7 +261,7 @@ export function DashboardView() {
 
       <section className="grid gap-3 lg:grid-cols-2">
         <GlassCard className="space-y-3">
-          <SectionHeader title="Weekly + Seasonal Challenges" subtitle="Phase 4 Step 4 progression tracks." />
+          <SectionHeader title="Weekly + Seasonal Challenges" subtitle="[v0.4.4] Progression tracks." />
           <div className="space-y-2">
             {challenges.weeklyChallenges.map((challenge) => (
               <div key={challenge.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
@@ -303,7 +303,7 @@ export function DashboardView() {
         </GlassCard>
 
         <GlassCard className="space-y-3">
-          <SectionHeader title="Achievements v2" subtitle="Unlocked badges from tracked event milestones." />
+          <SectionHeader title="Achievements v2" subtitle="[v0.4.4] Unlocked badges from tracked event milestones." />
           <div className="grid gap-2">
             {challenges.achievements.map((achievement) => (
               <div
