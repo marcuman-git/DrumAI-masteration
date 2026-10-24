@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Flame, Medal, Timer, Zap } from 'lucide-react'
 import { ensureTodayPlan, todayKey, togglePlanBlock, type AdaptivePlanState } from '../../core/services/analysis/adaptiveScheduler'
+import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
 import { buildCoachReport } from '../../core/services/analysis/coachEngine'
 import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
@@ -49,6 +50,7 @@ export function DashboardView() {
 
   const metrics = useMemo(() => buildPracticeMetrics(events), [events])
   const gamification = useMemo(() => buildGamificationSnapshot(events), [events])
+  const challenges = useMemo(() => buildChallengesSnapshot(events), [events])
   const coachReport = useMemo(() => buildCoachReport(events, hits), [events, hits])
   const hasEventData = events.length > 0
   const summary = hasEventData
@@ -256,6 +258,74 @@ export function DashboardView() {
           ))}
         </div>
       </GlassCard>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <GlassCard className="space-y-3">
+          <SectionHeader title="Weekly + Seasonal Challenges" subtitle="Phase 4 Step 4 progression tracks." />
+          <div className="space-y-2">
+            {challenges.weeklyChallenges.map((challenge) => (
+              <div key={challenge.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-zinc-100">{challenge.title}</p>
+                  <p className={`text-xs ${challenge.completed ? 'text-emerald-200' : 'text-zinc-400'}`}>
+                    {challenge.progress}/{challenge.target}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">{challenge.moduleHint}</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className={`h-full rounded-full ${challenge.completed ? 'bg-emerald-400' : 'bg-cyan-400'}`}
+                    style={{ width: `${Math.min(100, Math.round((challenge.progress / challenge.target) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            {challenges.seasonalChallenges.map((challenge) => (
+              <div key={challenge.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-zinc-100">{challenge.title}</p>
+                  <p className={`text-xs ${challenge.completed ? 'text-emerald-200' : 'text-zinc-400'}`}>
+                    {challenge.progress}/{challenge.target}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">{challenge.moduleHint}</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className={`h-full rounded-full ${challenge.completed ? 'bg-emerald-400' : 'bg-violet-400'}`}
+                    style={{ width: `${Math.min(100, Math.round((challenge.progress / challenge.target) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        <GlassCard className="space-y-3">
+          <SectionHeader title="Achievements v2" subtitle="Unlocked badges from tracked event milestones." />
+          <div className="grid gap-2">
+            {challenges.achievements.map((achievement) => (
+              <div
+                key={achievement.id}
+                className={`rounded-lg border p-3 ${
+                  achievement.unlocked
+                    ? 'border-emerald-300/35 bg-emerald-300/10'
+                    : 'border-white/10 bg-black/20'
+                }`}
+              >
+                <p className={`text-sm font-medium ${achievement.unlocked ? 'text-emerald-100' : 'text-zinc-200'}`}>
+                  {achievement.title}
+                </p>
+                <p className="mt-1 text-xs text-zinc-400">{achievement.description}</p>
+                <p className={`mt-1 text-xs ${achievement.unlocked ? 'text-emerald-200' : 'text-zinc-500'}`}>
+                  {achievement.unlocked ? 'Unlocked' : 'Locked'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      </section>
 
       <section className="grid gap-3 md:grid-cols-3">
         {achievements.map((achievement) => (
