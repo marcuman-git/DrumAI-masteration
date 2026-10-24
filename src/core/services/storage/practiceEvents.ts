@@ -82,3 +82,15 @@ export async function listPracticeEvents(limit = 500): Promise<PracticeEvent[]> 
 export async function clearPracticeEvents(): Promise<void> {
   await writeEvents([])
 }
+
+export async function replacePracticeEvents(events: PracticeEvent[]): Promise<void> {
+  await writeEvents(events.slice(-MAX_EVENTS))
+}
+
+export function appendPracticeEvents(events: PracticeEvent[]): Promise<void> {
+  return enqueueWrite(async () => {
+    const current = await readEvents()
+    const next = [...current, ...events].slice(-MAX_EVENTS)
+    await writeEvents(next)
+  })
+}
