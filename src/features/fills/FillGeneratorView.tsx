@@ -222,12 +222,12 @@ export function FillGeneratorView() {
                 return (
                   <div
                     key={`bar-${step.index}`}
-                    className={`relative grid h-20 place-items-center rounded border text-xs transition ${stepClass(step)}`}
+                    className={`relative flex h-20 flex-col items-center justify-center rounded border text-xs transition ${stepClass(step)}`}
                     style={{ width: `${widthPercent}%`, minWidth: '2.5rem' }}
                     title={`${step.noteLabel} | ${step.stickingLabel}`}
                   >
-                    <span className="text-base">{step.symbol}</span>
-                    <span className="absolute bottom-1 font-mono text-[10px]">{step.stickingLabel}</span>
+                    <span className="text-base leading-none">{step.symbol}</span>
+                    <span className="mt-1 font-mono text-[10px] leading-none">{step.stickingLabel}</span>
                     <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
                   </div>
                 )
