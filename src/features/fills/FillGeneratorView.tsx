@@ -21,13 +21,12 @@ interface FillStep {
   isRest: boolean
   noteLabel: string
   stickingLabel: string
-  durationUnits: number
   symbol: string
 }
 
 function noteLabel(token: string): string {
   if (token.includes('r')) return 'REST'
-  const instrument = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hat'
+  const instrument = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hi-hat'
   const duration = token.includes('/16') ? '16th' : token.includes('/8') ? '8th' : '4th'
   return `${instrument} ${duration}`
 }
@@ -38,7 +37,6 @@ function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillSte
   return pattern.notes.map((token, index) => {
     const isRest = token.includes('r')
     const stickingLabel = isRest ? '-' : nextHand
-    const durationUnits = token.includes('/16') ? 1 : token.includes('/8') ? 2 : 4
     const symbol = isRest ? '𝄽' : token.includes('/16') ? '♬' : token.includes('/8') ? '♪' : '♩'
 
     if (!isRest) {
@@ -51,7 +49,6 @@ function buildSteps(pattern: DrumNotationPattern, startHand: StartHand): FillSte
       isRest,
       noteLabel: noteLabel(token),
       stickingLabel,
-      durationUnits,
       symbol,
     }
   })
@@ -90,11 +87,6 @@ export function FillGeneratorView() {
   const controllerRef = useRef<AbortController | null>(null)
 
   const visualSteps = useMemo(() => buildSteps(pattern, startHand), [pattern, startHand])
-  const totalUnits = useMemo(
-    () => visualSteps.reduce((sum, step) => sum + step.durationUnits, 0),
-    [visualSteps],
-  )
-
   function regenerate() {
     try {
       const next = sanitizePattern(generateFillPattern(complexity, style))
@@ -216,18 +208,16 @@ export function FillGeneratorView() {
 
           <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Musical Bar Chart</p>
-            <div className="mt-3 flex items-end gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
               {visualSteps.map((step) => {
-                const widthPercent = Math.max(6, (step.durationUnits / Math.max(totalUnits, 1)) * 100)
                 return (
                   <div
                     key={`bar-${step.index}`}
-                    className={`relative flex h-20 flex-col items-center justify-center rounded border text-xs transition ${stepClass(step)}`}
-                    style={{ width: `${widthPercent}%`, minWidth: '2.5rem' }}
+                    className={`relative flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded border text-xs transition ${stepClass(step)}`}
                     title={`${step.noteLabel} | ${step.stickingLabel}`}
                   >
-                    <span className="text-base leading-none">{step.symbol}</span>
-                    <span className="mt-1 font-mono text-[10px] leading-none">{step.stickingLabel}</span>
+                    <span className="text-2xl leading-none">{step.symbol}</span>
+                    <span className="mt-1 font-mono text-base leading-none">{step.stickingLabel}</span>
                     <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
                   </div>
                 )
