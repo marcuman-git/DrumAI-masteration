@@ -18,6 +18,11 @@ export interface PracticeMetrics {
     consistency: number
     bpm: number
   }>
+  moduleUsage: Array<{
+    moduleId: string
+    minutes: number
+    percent: number
+  }>
   skills: SkillRating[]
 }
 
@@ -29,7 +34,10 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function dateKey(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function dayLabel(date: Date): string {
@@ -54,12 +62,13 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
   const startsBySession = new Map<string, PracticeEvent>()
   let totalMinutes = 0
   const minutesByDay = new Map<string, number>()
+  const minutesByModule = new Map<string, number>()
   const activeDays = new Set<string>()
 
   let timingHitCount = 0
   let timingPerfectCount = 0
   const timingDeviations: number[] = []
-  let bestBpm = 60
+  let bestBpm = 0
 
   let readingEvents = 0
   let dictationMistakes = 0
@@ -110,6 +119,7 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
     totalMinutes += durationMin
     const key = dateKey(ts)
     minutesByDay.set(key, (minutesByDay.get(key) ?? 0) + durationMin)
+    minutesByModule.set(start.moduleId, (minutesByModule.get(start.moduleId) ?? 0) + durationMin)
     startsBySession.delete(event.sessionId)
   }
 
@@ -162,11 +172,20 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
     timingDeviations.length > 0
       ? timingDeviations.reduce((acc, value) => acc + Math.abs(value), 0) / timingDeviations.length
       : 0
-  const coordination = clamp(100 - Math.round(meanDeviation), 0, 100)
-  const reading = clamp(60 + Math.round(readingEvents / 3) - dictationMistakes * 2, 0, 100)
-  const dynamics = clamp(55 + Math.round(dynamicsEvents / 4), 0, 100)
-  const speed = clamp(40 + Math.round(bestBpm / 3), 0, 100)
+  const coordination = timingHitCount ? clamp(100 - Math.round(meanDeviation), 0, 100) : 0
+  const reading = readingEvents || dictationMistakes ? clamp(60 + Math.round(readingEvents / 3) - dictationMistakes * 2, 0, 100) : 0
+  const dynamics = dynamicsEvents ? clamp(55 + Math.round(dynamicsEvents / 4), 0, 100) : 0
+  const speed = bestBpm ? clamp(40 + Math.round(bestBpm / 3), 0, 100) : 0
   const overall = Math.round((timingAccuracy + coordination + reading + dynamics + speed) / 5)
+
+  const totalTrackedMinutes = Array.from(minutesByModule.values()).reduce((acc, value) => acc + value, 0)
+  const moduleUsage = Array.from(minutesByModule.entries())
+    .map(([moduleId, minutes]) => ({
+      moduleId,
+      minutes: Number(minutes.toFixed(1)),
+      percent: totalTrackedMinutes ? Math.round((minutes / totalTrackedMinutes) * 100) : 0,
+    }))
+    .sort((a, b) => a.moduleId.localeCompare(b.moduleId))
 
   const skills: SkillRating[] = [
     { key: 'timing', label: 'Timing', value: timingAccuracy },
@@ -185,16 +204,18 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
     totalPracticeHours,
     timingAccuracy,
     bestBpm,
-    recommendedExercise:
-      dictationMistakes > 3
+    recommendedExercise: !events.length
+      ? 'Start with Timing Analyzer at 60 BPM for 5 minutes'
+      : dictationMistakes > 3
         ? 'Rhythm dictation correction loop @ 60 BPM'
         : meanDeviation > 12
           ? 'Singles timing lock @ 60 BPM for 8 minutes'
           : 'Paradiddle inversion @ 60 BPM for 10 minutes',
     practiceMinutes: Math.round(totalMinutes),
-    rudimentMastery: clamp(45 + Math.round((rudimentEvents + stickEvents) / 5), 0, 100),
+    rudimentMastery: rudimentEvents + stickEvents ? clamp(45 + Math.round((rudimentEvents + stickEvents) / 5), 0, 100) : 0,
     dynamicsConsistency: dynamics,
     weeklyTrend,
+    moduleUsage,
     skills,
   }
 }

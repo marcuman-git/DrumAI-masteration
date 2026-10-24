@@ -57,8 +57,11 @@ describe('buildPracticeMetrics', () => {
 
     expect(result.practiceMinutes).toBe(0)
     expect(result.totalPracticeHours).toBe(0)
-    expect(result.bestBpm).toBe(60)
+    expect(result.bestBpm).toBe(0)
     expect(result.timingAccuracy).toBe(0)
+    expect(result.rudimentMastery).toBe(0)
+    expect(result.dynamicsConsistency).toBe(0)
+    expect(result.moduleUsage).toHaveLength(0)
     expect(result.weeklyTrend).toHaveLength(7)
   })
 })
