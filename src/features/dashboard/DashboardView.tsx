@@ -135,7 +135,7 @@ export function DashboardView() {
       <section className="grid gap-3 lg:grid-cols-[2fr_1fr]">
         <GlassCard>
           <SectionHeader title="Skill Ratings" subtitle="Real-time profile from your sessions" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3">
             {skills.map((skill) => (
               <ProgressRing key={skill.key} value={skill.value} label={skill.label} />
             ))}
