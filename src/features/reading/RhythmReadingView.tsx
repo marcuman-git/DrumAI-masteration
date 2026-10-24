@@ -9,7 +9,6 @@ import { SectionHeader } from '../../shared/components/SectionHeader'
 interface RhythmStep {
   token: string
   note: string
-  durationUnits: number
   symbol: string
 }
 
@@ -30,9 +29,8 @@ const patterns: DrumNotationPattern[] = [
 
 function stepInfo(token: string): RhythmStep {
   const note = token.includes('d4') ? 'Snare' : token.includes('f4') ? 'Kick' : 'Hi-hat'
-  const durationUnits = token.includes('/16') ? 1 : token.includes('/8') ? 2 : 4
   const symbol = token.includes('/16') ? '♬' : token.includes('/8') ? '♪' : '♩'
-  return { token, note, durationUnits, symbol }
+  return { token, note, symbol }
 }
 
 export function RhythmReadingView() {
@@ -103,19 +101,19 @@ export function RhythmReadingView() {
       noise.buffer = noiseBuffer
       const noiseFilter = context.createBiquadFilter()
       noiseFilter.type = 'bandpass'
-      noiseFilter.frequency.value = 1800
+      noiseFilter.frequency.value = 2100
       const noiseGain = context.createGain()
       noiseGain.gain.setValueAtTime(0.0001, when)
-      noiseGain.gain.linearRampToValueAtTime(0.55, when + 0.005)
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.14)
+      noiseGain.gain.linearRampToValueAtTime(0.65, when + 0.004)
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.16)
 
       const tone = context.createOscillator()
       tone.type = 'triangle'
-      tone.frequency.value = 190
+      tone.frequency.value = 210
       const toneGain = context.createGain()
       toneGain.gain.setValueAtTime(0.0001, when)
-      toneGain.gain.linearRampToValueAtTime(0.18, when + 0.004)
-      toneGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.1)
+      toneGain.gain.linearRampToValueAtTime(0.22, when + 0.003)
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.12)
 
       noise.connect(noiseFilter)
       noiseFilter.connect(noiseGain)
@@ -140,14 +138,19 @@ export function RhythmReadingView() {
     source.buffer = noiseBuffer
     const highpass = context.createBiquadFilter()
     highpass.type = 'highpass'
-    highpass.frequency.value = 7000
+    highpass.frequency.value = 6500
+    const bandpass = context.createBiquadFilter()
+    bandpass.type = 'bandpass'
+    bandpass.frequency.value = 9000
+    bandpass.Q.value = 1.2
     const gain = context.createGain()
     gain.gain.setValueAtTime(0.0001, when)
-    gain.gain.linearRampToValueAtTime(0.45, when + 0.002)
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05)
+    gain.gain.linearRampToValueAtTime(0.5, when + 0.0015)
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.04)
 
     source.connect(highpass)
-    highpass.connect(gain)
+    highpass.connect(bandpass)
+    bandpass.connect(gain)
     gain.connect(context.destination)
     source.start(when)
     source.stop(when + 0.06)
@@ -212,19 +215,18 @@ export function RhythmReadingView() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Reading Bar Chart</p>
-            <div className="mt-3 flex items-end gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-2">
               {steps.map((step, stepIndex) => (
                 <div
                   key={`${step.token}-${stepIndex}`}
-                  className={`relative grid h-20 place-items-center rounded border text-sm transition ${
+                  className={`relative flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded border text-sm transition ${
                     activeStep === stepIndex
                       ? 'border-cyan-300/70 bg-cyan-300/25 text-cyan-100'
                       : 'border-white/10 bg-white/5 text-zinc-200'
                   }`}
-                  style={{ width: `${Math.max(7, step.durationUnits * 9)}%`, minWidth: '2.5rem' }}
                 >
-                  <span className="text-xl leading-none">{step.symbol}</span>
-                  <span className="text-sm leading-none">{step.note}</span>
+                  <span className="text-2xl leading-none">{step.symbol}</span>
+                  <span className="mt-1 text-sm leading-none">{step.note}</span>
                   <span className="absolute -right-[1px] top-0 h-full w-px bg-white/25" />
                 </div>
               ))}
