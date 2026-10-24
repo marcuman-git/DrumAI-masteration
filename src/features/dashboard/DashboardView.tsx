@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Flame, Medal, Timer, Zap } from 'lucide-react'
 import { ensureTodayPlan, todayKey, togglePlanBlock, type AdaptivePlanState } from '../../core/services/analysis/adaptiveScheduler'
 import { buildCoachReport } from '../../core/services/analysis/coachEngine'
+import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
@@ -47,6 +48,7 @@ export function DashboardView() {
   }, [])
 
   const metrics = useMemo(() => buildPracticeMetrics(events), [events])
+  const gamification = useMemo(() => buildGamificationSnapshot(events), [events])
   const coachReport = useMemo(() => buildCoachReport(events, hits), [events, hits])
   const hasEventData = events.length > 0
   const summary = hasEventData
@@ -207,6 +209,52 @@ export function DashboardView() {
         ) : (
           <p className="text-sm text-zinc-400">Complete onboarding to generate your adaptive daily schedule.</p>
         )}
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Daily Quests + XP" subtitle="Phase 4 Step 3: event-based gamification progression." />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Level</p>
+            <p className="mt-1 text-3xl font-semibold text-zinc-100">{gamification.level}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">XP Today</p>
+            <p className="mt-1 text-3xl font-semibold text-cyan-200">{gamification.todayXp}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Next Level</p>
+            <p className="mt-1 text-3xl font-semibold text-zinc-100">{gamification.xpToNextLevel} XP</p>
+          </div>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+          <div
+            className="h-full rounded-full bg-cyan-400"
+            style={{ width: `${(gamification.currentLevelXp / 250) * 100}%` }}
+          />
+        </div>
+        <div className="space-y-2">
+          {gamification.quests.map((quest) => (
+            <div key={quest.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-zinc-100">{quest.title}</p>
+                <p className={`text-xs ${quest.completed ? 'text-emerald-200' : 'text-zinc-400'}`}>
+                  {quest.completed ? 'Completed' : 'In progress'} • +{quest.rewardXp} XP
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-zinc-400">{quest.moduleHint}</p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className={`h-full rounded-full ${quest.completed ? 'bg-emerald-400' : 'bg-cyan-400'}`}
+                  style={{ width: `${Math.min(100, Math.round((quest.progress / quest.target) * 100))}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">
+                {quest.progress}/{quest.target}
+              </p>
+            </div>
+          ))}
+        </div>
       </GlassCard>
 
       <section className="grid gap-3 md:grid-cols-3">
