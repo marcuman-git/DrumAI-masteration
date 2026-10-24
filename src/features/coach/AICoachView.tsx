@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  clearPlanCompletions,
+  ensureTodayPlan,
+  rebuildTodayPlan,
+  todayKey,
+  type AdaptivePlanState,
+} from '../../core/services/analysis/adaptiveScheduler'
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
+import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
+import { clearAdaptivePlan, loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
@@ -13,6 +22,7 @@ export function AICoachView() {
   const micLevel = useAppStore((state) => state.micLevel)
   const [recentEvents, setRecentEvents] = useState<PracticeEvent[]>([])
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [adaptivePlan, setAdaptivePlan] = useState<AdaptivePlanState | null>(null)
 
   useEffect(() => {
     void listPracticeEvents(400).then(setRecentEvents)
@@ -22,7 +32,45 @@ export function AICoachView() {
   }, [])
 
   const report = useMemo(() => buildCoachReport(recentEvents, hits), [recentEvents, hits])
+  const metrics = useMemo(() => buildPracticeMetrics(recentEvents), [recentEvents])
   const sourceSummary = useMemo(() => formatSourceSummary(report.sourceSummary), [report.sourceSummary])
+  const activeDay = adaptivePlan?.dailyByDate[todayKey()] ?? null
+
+  useEffect(() => {
+    if (!profile) return
+    let mounted = true
+    const syncPlan = async () => {
+      const stored = await loadAdaptivePlan()
+      const next = ensureTodayPlan(stored, { profile, metrics, report })
+      await saveAdaptivePlan(next)
+      if (!mounted) return
+      setAdaptivePlan(next)
+    }
+    void syncPlan()
+    return () => {
+      mounted = false
+    }
+  }, [profile, metrics, report])
+
+  async function handleRebuildPlan() {
+    if (!profile) return
+    const base = (await loadAdaptivePlan()) ?? ensureTodayPlan(null, { profile, metrics, report })
+    const next = rebuildTodayPlan(base, { profile, metrics, report })
+    await saveAdaptivePlan(next)
+    setAdaptivePlan(next)
+  }
+
+  async function handleResetCompletions() {
+    if (!adaptivePlan) return
+    const next = clearPlanCompletions(adaptivePlan, todayKey())
+    await saveAdaptivePlan(next)
+    setAdaptivePlan(next)
+  }
+
+  async function handleClearPlan() {
+    await clearAdaptivePlan()
+    setAdaptivePlan(null)
+  }
 
   return (
     <div className="space-y-4">
@@ -95,6 +143,55 @@ export function AICoachView() {
           </div>
         </GlassCard>
       </div>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader
+          title="Adaptive Scheduler"
+          subtitle="Persisted completion tracking with rebuild/reset controls."
+          right={
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void handleRebuildPlan()}
+                className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+              >
+                Rebuild Today
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleResetCompletions()}
+                className="rounded-lg border border-violet-300/35 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
+              >
+                Reset Completion
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleClearPlan()}
+                className="rounded-lg border border-rose-300/35 bg-rose-300/10 px-3 py-2 text-xs text-rose-200"
+              >
+                Clear Plan Cache
+              </button>
+            </div>
+          }
+        />
+        {activeDay ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {activeDay.blocks.map((block) => (
+              <div key={block.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-sm font-medium text-zinc-100">{block.title}</p>
+                <p className="text-xs text-zinc-400">
+                  {block.minutes} min | {block.moduleHint}
+                </p>
+                <p className={`mt-1 text-xs ${block.completed ? 'text-emerald-200' : 'text-zinc-500'}`}>
+                  {block.completed ? 'Completed in today schedule' : 'Pending'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-400">No adaptive plan yet. Save onboarding profile and rebuild today.</p>
+        )}
+      </GlassCard>
 
       <div className="grid gap-3 md:grid-cols-2">
         {insights.map((insight) => (
