@@ -39,6 +39,7 @@ export function MetronomeView() {
   const [humanize, setHumanize] = useState(0)
   const [clickVolume, setClickVolume] = useState(0.3)
   const [randomTempo, setRandomTempo] = useState(false)
+  const [increasingTempo, setIncreasingTempo] = useState(false)
   const [animationSeed, setAnimationSeed] = useState(0)
 
   const accentPattern = useMemo(() => [1.8, 1, 1, 1], [])
@@ -68,11 +69,26 @@ export function MetronomeView() {
   useEffect(() => {
     if (!randomTempo || !isRunning) return
     const interval = window.setInterval(() => {
-      setBpm((current) => Math.min(220, Math.max(40, current + (Math.random() > 0.5 ? 2 : -2))))
+      const randomBpm = Math.floor(Math.random() * 51) + 50
+      applyBpm(randomBpm)
     }, 4000)
 
     return () => window.clearInterval(interval)
   }, [randomTempo, isRunning])
+
+  useEffect(() => {
+    if (!increasingTempo || !isRunning) return
+    const interval = window.setInterval(() => {
+      setBpm((current) => {
+        const next = Math.min(240, current + 2)
+        if (sessionIdRef.current) {
+          void trackPracticeEvent('metronome', 'score', { action: 'increasing-tempo-step', bpm: next }, sessionIdRef.current)
+        }
+        return next
+      })
+    }, 20000)
+    return () => window.clearInterval(interval)
+  }, [increasingTempo, isRunning])
 
   useEffect(() => {
     if (!isRunning) return
@@ -96,7 +112,7 @@ export function MetronomeView() {
       const intervals = tapTimes.current.slice(1).map((time, index) => time - tapTimes.current[index])
       const avg = intervals.reduce((acc, val) => acc + val, 0) / intervals.length
       const tappedBpm = Math.round(60000 / avg)
-      setBpm(tappedBpm)
+      applyBpm(tappedBpm)
       void trackPracticeEvent('metronome', 'score', { action: 'tap-tempo', bpm: tappedBpm }, sessionIdRef.current ?? undefined)
     }
   }
@@ -137,11 +153,27 @@ export function MetronomeView() {
     setIsRunning(false)
   }
 
+  function handleToggleRandomTempo() {
+    setRandomTempo((value) => {
+      const next = !value
+      if (next) setIncreasingTempo(false)
+      return next
+    })
+  }
+
+  function handleToggleIncreasingTempo() {
+    setIncreasingTempo((value) => {
+      const next = !value
+      if (next) setRandomTempo(false)
+      return next
+    })
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader
         title="Smart Metronome"
-        subtitle="[v0.4.6] Advanced click engine with accents, random tempo, swing, humanization, and visual pulse."
+        subtitle="[v0.4.7] Advanced click engine with random/increasing tempo modes, accents, swing, and visual pulse."
       />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -248,11 +280,19 @@ export function MetronomeView() {
 
           <button
             type="button"
-            onClick={() => setRandomTempo((value) => !value)}
+            onClick={handleToggleRandomTempo}
             className="inline-flex items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
           >
             <WandSparkles size={14} />
-            Random Tempo Mode {randomTempo ? 'On' : 'Off'}
+            Random Tempo (50-100) {randomTempo ? 'On' : 'Off'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleIncreasingTempo}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100"
+          >
+            Increasing Tempo (+2 / 20s) {increasingTempo ? 'On' : 'Off'}
           </button>
         </GlassCard>
 
