@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { buildPersonalProgressSnapshot } from '../../core/services/analysis/personalProgress'
+import { clearBaselineBoost, injectBaselineBoost } from '../../core/services/analysis/progressionTestTools'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { clearPracticeEvents, listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import { useAppStore } from '../../core/store/useAppStore'
@@ -51,6 +52,18 @@ export function AnalyticsView() {
     setEvents([])
   }
 
+  async function handleFastForwardTest() {
+    await injectBaselineBoost(4)
+    const next = await listPracticeEvents(5000)
+    setEvents(next)
+  }
+
+  async function handleClearFastForwardTest() {
+    await clearBaselineBoost()
+    const next = await listPracticeEvents(5000)
+    setEvents(next)
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader
@@ -59,6 +72,20 @@ export function AnalyticsView() {
       />
 
       <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void handleFastForwardTest()}
+          className="mr-2 rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+        >
+          Fast-Forward +4 Days (Test)
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleClearFastForwardTest()}
+          className="mr-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+        >
+          Clear Fast-Forward (Test)
+        </button>
         <button
           type="button"
           onClick={() => void handleResetData()}
