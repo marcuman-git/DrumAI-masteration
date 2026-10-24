@@ -1,13 +1,41 @@
-name: DrumMaster AI Tests
+name: DrumMaster AI Fast Checks
 
 on:
   push:
     branches: ["**"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "playwright.config.ts"
+      - ".github/workflows/tests.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "playwright.config.ts"
+      - ".github/workflows/tests.yml"
   workflow_dispatch:
 
+concurrency:
+  group: fast-checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  fast-checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,12 +52,6 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
-
-      - name: Install Playwright browser + deps
-        run: npx playwright install --with-deps chromium
-
-      - name: Run e2e tests
-        run: npm run test:e2e
 
       - name: Build app
         run: npm run build
