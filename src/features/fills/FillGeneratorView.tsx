@@ -181,7 +181,7 @@ export function FillGeneratorView() {
         subtitle="Chart view with note/rest highlighting, start-hand control, and playback verification."
       />
 
-      <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+      <div className="grid gap-3 lg:grid-cols-2">
         <GlassCard className="space-y-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Fill Chart</p>
