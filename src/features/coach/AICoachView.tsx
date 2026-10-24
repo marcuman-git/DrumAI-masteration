@@ -198,7 +198,7 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Gamification Pulse" subtitle="Phase 4 Step 3 connection to event-derived XP and quests." />
+        <SectionHeader title="Gamification Pulse" subtitle="[v0.4.3] Connection to event-derived XP and quests." />
         <p className="text-sm text-zinc-200">
           Level {gamification.level} | Total XP {gamification.totalXp} | Today XP {gamification.todayXp} | Next level in{' '}
           {gamification.xpToNextLevel} XP
@@ -219,7 +219,7 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Challenges + Achievements v2" subtitle="Phase 4 Step 4 coaching alignment signals." />
+        <SectionHeader title="Challenges + Achievements v2" subtitle="[v0.4.4] Coaching alignment signals." />
         <p className="text-sm text-zinc-300">
           Weekly completed: {challenges.weeklyChallenges.filter((challenge) => challenge.completed).length}/
           {challenges.weeklyChallenges.length} | Seasonal completed:{' '}
