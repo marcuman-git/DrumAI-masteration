@@ -1,166 +1,144 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
+import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
 import {
-  createChallenge,
-  createGroove,
-  fetchChallenges,
-  fetchFriends,
-  fetchGrooves,
-  fetchGroups,
-  fetchRankings,
-  type ChallengeEntry,
-  type FriendEntry,
-  type GrooveEntry,
-  type GroupEntry,
-  type RankingEntry,
-} from '../../core/services/api/communityService'
-import { login, logout, register, type AuthUser } from '../../core/services/api/authService'
+  addCommunityFriend,
+  buildCommunityLeaderboard,
+  createCommunityChallenge,
+  getCommunityFoundation,
+  setCommunityProfileName,
+  shareCommunityGroove,
+  updateCommunityChallengeStatus,
+  type CommunityFoundationState,
+} from '../../core/services/storage/communityFoundation'
+import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
 export function CommunityView() {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [rankings, setRankings] = useState<RankingEntry[]>([])
-  const [friends, setFriends] = useState<FriendEntry[]>([])
-  const [groups, setGroups] = useState<GroupEntry[]>([])
-  const [challenges, setChallenges] = useState<ChallengeEntry[]>([])
-  const [grooves, setGrooves] = useState<GrooveEntry[]>([])
-  const [status, setStatus] = useState<string>('Sign in to sync community data.')
-
-  async function loadCommunityData() {
-    const [r, f, g, c, gr] = await Promise.all([
-      fetchRankings(),
-      fetchFriends(),
-      fetchGroups(),
-      fetchChallenges(),
-      fetchGrooves(),
-    ])
-
-    setRankings(r)
-    setFriends(f)
-    setGroups(g)
-    setChallenges(c)
-    setGrooves(gr)
-  }
+  const [events, setEvents] = useState<PracticeEvent[]>([])
+  const [foundation, setFoundation] = useState<CommunityFoundationState>(() => getCommunityFoundation())
+  const [friendName, setFriendName] = useState('')
+  const [profileNameInput, setProfileNameInput] = useState(foundation.profileName)
+  const [status, setStatus] = useState('Local community foundation ready.')
 
   useEffect(() => {
-    loadCommunityData().catch(() => {
-      setStatus('API unavailable or not authenticated. Start backend and sign in.')
-    })
+    let mounted = true
+    const refresh = async () => {
+      const next = await listPracticeEvents(5000)
+      if (!mounted) return
+      setEvents(next)
+    }
+    void refresh()
+    const interval = window.setInterval(() => void refresh(), 5000)
+    return () => {
+      mounted = false
+      window.clearInterval(interval)
+    }
   }, [])
 
-  async function handleAuth() {
-    try {
-      const loggedInUser =
-        mode === 'login' ? await login(email, password) : await register(email, password, displayName)
-      setUser(loggedInUser)
-      setStatus(`Authenticated as ${loggedInUser.displayName}.`) 
-      await loadCommunityData()
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Authentication failed')
-    }
+  const leaderboard = useMemo(() => buildCommunityLeaderboard(events, foundation), [events, foundation])
+  const challengeSignals = useMemo(() => buildChallengesSnapshot(events), [events])
+
+  function handleAddFriend() {
+    if (!friendName.trim()) return
+    const next = addCommunityFriend(friendName)
+    setFoundation(next)
+    setFriendName('')
+    setStatus(`Friend added: ${next.friends[0]?.name ?? 'Unknown'}`)
   }
 
-  async function handleCreateChallenge() {
-    try {
-      const created = await createChallenge('Pocket Precision Weekend', '2026-11-12')
-      setChallenges((value) => [created, ...value])
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not create challenge')
-    }
+  function handleCreateInvite() {
+    const endsAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const next = createCommunityChallenge('Timing Duel Invite', 'Score 100 clean hits @ 60 BPM', endsAt)
+    setFoundation(next)
+    setStatus('Challenge invite created.')
   }
 
-  async function handleShareGroove() {
-    try {
-      const created = await createGroove('Linear Ghost Pocket', 'Funk')
-      setGrooves((value) => [created, ...value])
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not share groove')
-    }
+  function handleShareGroove() {
+    const next = shareCommunityGroove('Pocket Builder Loop', 'Rock')
+    setFoundation(next)
+    setStatus('Groove shared with community.')
+  }
+
+  function handleSaveProfileName() {
+    const next = setCommunityProfileName(profileNameInput)
+    setFoundation(next)
+    setStatus(`Community profile set to ${next.profileName}.`)
   }
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Community" subtitle="Auth + API-backed friends, rankings, groups, challenges, and groove sharing." />
+      <SectionHeader title="Community" subtitle="[v0.4.5] Local friend system, challenge invites, and leaderboard scaffold." />
 
       <div className="grid gap-3 lg:grid-cols-[1.3fr_2fr]">
         <GlassCard className="space-y-3">
-          <p className="text-xs uppercase tracking-wide text-zinc-400">Authentication</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setMode('login')}
-              className={`rounded-lg px-3 py-2 text-xs ${mode === 'login' ? 'bg-cyan-300/20 text-cyan-100' : 'bg-white/5 text-zinc-300'}`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('register')}
-              className={`rounded-lg px-3 py-2 text-xs ${mode === 'register' ? 'bg-cyan-300/20 text-cyan-100' : 'bg-white/5 text-zinc-300'}`}
-            >
-              Register
-            </button>
-          </div>
-
-          {mode === 'register' ? (
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Community Profile</p>
+          <label className="text-xs text-zinc-300">
+            Display Name
             <input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Display name"
-              className="w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
+              value={profileNameInput}
+              onChange={(event) => setProfileNameInput(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
             />
-          ) : null}
+          </label>
+          <button
+            type="button"
+            onClick={handleSaveProfileName}
+            className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+          >
+            Save Name
+          </button>
 
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Email"
-            className="w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
-          />
-          <input
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            type="password"
-            placeholder="Password"
-            className="w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
-          />
+          <label className="text-xs text-zinc-300">
+            Add Friend
+            <input
+              value={friendName}
+              onChange={(event) => setFriendName(event.target.value)}
+              placeholder="Friend name"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleAddFriend}
+            className="rounded-lg border border-violet-300/35 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
+          >
+            Add Friend
+          </button>
 
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => void handleAuth()}
-              className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+              onClick={handleCreateInvite}
+              className="rounded-lg border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-xs text-amber-100"
             >
-              Continue
+              Create Invite
             </button>
             <button
               type="button"
-              onClick={() => {
-                logout()
-                setUser(null)
-                setStatus('Signed out.')
-              }}
-              className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200"
+              onClick={handleShareGroove}
+              className="rounded-lg border border-emerald-300/35 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100"
             >
-              Logout
+              Share Groove
             </button>
           </div>
 
           <p className="text-xs text-zinc-400">{status}</p>
-          <p className="text-xs text-zinc-500">{user ? `Session: ${user.displayName}` : 'No active user'}</p>
         </GlassCard>
 
         <div className="grid gap-3 md:grid-cols-2">
           <GlassCard>
-            <p className="text-xs uppercase tracking-wide text-zinc-400">Global Rankings</p>
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Leaderboard Scaffold</p>
             <ul className="mt-2 space-y-2 text-sm">
-              {rankings.map((entry) => (
-                <li key={entry.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                  {entry.name} | Lv {entry.level} | {entry.accuracy}% | {entry.bpm} BPM
+              {leaderboard.map((entry, index) => (
+                <li
+                  key={entry.id}
+                  className={`rounded-lg border p-2 ${
+                    entry.isSelf ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-white/10 bg-black/20'
+                  }`}
+                >
+                  #{index + 1} {entry.name} | Lv {entry.level} | {entry.accuracy}% | {entry.bpm} BPM | {entry.xp} XP
                 </li>
               ))}
             </ul>
@@ -169,7 +147,7 @@ export function CommunityView() {
           <GlassCard>
             <p className="text-xs uppercase tracking-wide text-zinc-400">Friends</p>
             <ul className="mt-2 space-y-2 text-sm">
-              {friends.map((friend) => (
+              {foundation.friends.map((friend) => (
                 <li key={friend.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
                   {friend.name} | {friend.status} | streak {friend.streak}
                 </li>
@@ -178,38 +156,39 @@ export function CommunityView() {
           </GlassCard>
 
           <GlassCard>
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-zinc-400">Challenges</p>
-              <button
-                type="button"
-                onClick={() => void handleCreateChallenge()}
-                className="rounded-lg border border-violet-300/40 bg-violet-300/10 px-2 py-1 text-xs text-violet-100"
-              >
-                New
-              </button>
-            </div>
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Challenge Invites</p>
             <ul className="mt-2 space-y-2 text-sm">
-              {challenges.map((challenge) => (
+              {foundation.challenges.map((challenge) => (
                 <li key={challenge.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                  {challenge.title} | {challenge.participants} players | ends {challenge.endsAt}
+                  <p>
+                    {challenge.title} | {challenge.target}
+                  </p>
+                  <p className="text-xs text-zinc-500">Ends: {challenge.endsAt}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFoundation(updateCommunityChallengeStatus(challenge.id, 'accepted'))}
+                      className="rounded-md border border-cyan-300/35 bg-cyan-300/10 px-2 py-1 text-xs text-cyan-100"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFoundation(updateCommunityChallengeStatus(challenge.id, 'completed'))}
+                      className="rounded-md border border-emerald-300/35 bg-emerald-300/10 px-2 py-1 text-xs text-emerald-100"
+                    >
+                      Complete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           </GlassCard>
 
           <GlassCard>
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-zinc-400">Groove Sharing</p>
-              <button
-                type="button"
-                onClick={() => void handleShareGroove()}
-                className="rounded-lg border border-violet-300/40 bg-violet-300/10 px-2 py-1 text-xs text-violet-100"
-              >
-                Share
-              </button>
-            </div>
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Shared Grooves</p>
             <ul className="mt-2 space-y-2 text-sm">
-              {grooves.map((groove) => (
+              {foundation.grooves.map((groove) => (
                 <li key={groove.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
                   {groove.title} | {groove.style} | by {groove.author}
                 </li>
@@ -219,16 +198,34 @@ export function CommunityView() {
         </div>
       </div>
 
-      <GlassCard>
-        <p className="text-xs uppercase tracking-wide text-zinc-400">Practice Groups</p>
-        <div className="mt-2 grid gap-2 md:grid-cols-2">
-          {groups.map((group) => (
-            <div key={group.id} className="rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-zinc-200">
-              {group.name} | {group.members} members | {group.style}
-            </div>
-          ))}
-        </div>
-      </GlassCard>
+      <div className="grid gap-3 md:grid-cols-2">
+        <GlassCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Practice Groups</p>
+          <div className="mt-2 grid gap-2">
+            {foundation.groups.map((group) => (
+              <div key={group.id} className="rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-zinc-200">
+                {group.name} | {group.members} members | {group.style}
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        <GlassCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Challenge Progress Signals</p>
+          <p className="mt-2 text-sm text-zinc-300">
+            Weekly completed: {challengeSignals.weeklyChallenges.filter((challenge) => challenge.completed).length}/
+            {challengeSignals.weeklyChallenges.length}
+          </p>
+          <p className="mt-1 text-sm text-zinc-300">
+            Seasonal completed: {challengeSignals.seasonalChallenges.filter((challenge) => challenge.completed).length}/
+            {challengeSignals.seasonalChallenges.length}
+          </p>
+          <p className="mt-1 text-sm text-zinc-300">
+            Achievements unlocked: {challengeSignals.achievements.filter((achievement) => achievement.unlocked).length}/
+            {challengeSignals.achievements.length}
+          </p>
+        </GlassCard>
+      </div>
     </div>
   )
 }
