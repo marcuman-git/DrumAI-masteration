@@ -9,6 +9,7 @@ import {
 import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
 import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
+import { buildPersonalProgressSnapshot } from '../../core/services/analysis/personalProgress'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { clearAdaptivePlan, loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
@@ -36,6 +37,7 @@ export function AICoachView() {
   const report = useMemo(() => buildCoachReport(recentEvents, hits), [recentEvents, hits])
   const metrics = useMemo(() => buildPracticeMetrics(recentEvents), [recentEvents])
   const gamification = useMemo(() => buildGamificationSnapshot(recentEvents), [recentEvents])
+  const personalProgress = useMemo(() => buildPersonalProgressSnapshot(recentEvents), [recentEvents])
   const challenges = useMemo(() => buildChallengesSnapshot(recentEvents), [recentEvents])
   const sourceSummary = useMemo(() => formatSourceSummary(report.sourceSummary), [report.sourceSummary])
   const activeDay = adaptivePlan?.dailyByDate[todayKey()] ?? null
@@ -78,7 +80,7 @@ export function AICoachView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="AI Coach" subtitle="Daily and weekly adaptive plans based on timing, dynamics, consistency, and limb balance." />
+      <SectionHeader title="AI Coach" subtitle="[v0.4.7] Personal coaching with progression planning and quality insights." />
 
       <GlassCard className="space-y-3">
         <p className="text-sm text-zinc-200">{report.summary}</p>
@@ -230,6 +232,38 @@ export function AICoachView() {
           Achievements unlocked: {challenges.achievements.filter((achievement) => achievement.unlocked).length}/
           {challenges.achievements.length}
         </p>
+      </GlassCard>
+
+      <GlassCard className="space-y-3">
+        <SectionHeader title="Personal Progression Planner" subtitle="[v0.4.7] Next milestone and weekly execution blueprint." />
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Quality</p>
+            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.qualityScore}%</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence</p>
+            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.cadenceScore}%</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
+            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.momentumScore}%</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Closure</p>
+            <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.completionRatio}%</p>
+          </div>
+        </div>
+        <p className="text-sm text-zinc-300">
+          Next milestone: <span className="text-cyan-200">{personalProgress.nextMilestone}</span>
+        </p>
+        <div className="space-y-1">
+          {personalProgress.weeklyPlan.map((line, index) => (
+            <p key={`${line}-${index}`} className="text-sm text-zinc-300">
+              {index + 1}. {line}
+            </p>
+          ))}
+        </div>
       </GlassCard>
 
       <div className="grid gap-3 md:grid-cols-2">
