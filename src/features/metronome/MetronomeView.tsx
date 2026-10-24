@@ -39,6 +39,7 @@ export function MetronomeView() {
   const [humanize, setHumanize] = useState(0)
   const [clickVolume, setClickVolume] = useState(0.3)
   const [randomTempo, setRandomTempo] = useState(false)
+  const [animationSeed, setAnimationSeed] = useState(0)
 
   const accentPattern = useMemo(() => [1.8, 1, 1, 1], [])
 
@@ -74,6 +75,11 @@ export function MetronomeView() {
   }, [randomTempo, isRunning])
 
   useEffect(() => {
+    if (!isRunning) return
+    setAnimationSeed((value) => value + 1)
+  }, [bpm, isRunning])
+
+  useEffect(() => {
     return () => {
       if (sessionIdRef.current) {
         stopPracticeSession('metronome', sessionIdRef.current, { reason: 'unmount' })
@@ -92,6 +98,14 @@ export function MetronomeView() {
       const tappedBpm = Math.round(60000 / avg)
       setBpm(tappedBpm)
       void trackPracticeEvent('metronome', 'score', { action: 'tap-tempo', bpm: tappedBpm }, sessionIdRef.current ?? undefined)
+    }
+  }
+
+  function applyBpm(nextBpm: number) {
+    const clamped = Math.min(240, Math.max(40, nextBpm))
+    setBpm(clamped)
+    if (isRunning) {
+      void trackPracticeEvent('metronome', 'score', { action: 'bpm-change-live', bpm: clamped }, sessionIdRef.current ?? undefined)
     }
   }
 
@@ -114,7 +128,7 @@ export function MetronomeView() {
     <div className="space-y-4">
       <SectionHeader
         title="Smart Metronome"
-        subtitle="Advanced click engine with accents, random tempo, swing, humanization, and visual pulse."
+        subtitle="[v0.4.4] Advanced click engine with accents, random tempo, swing, humanization, and visual pulse."
       />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -147,7 +161,7 @@ export function MetronomeView() {
             min={40}
             max={240}
             value={bpm}
-            onChange={(event) => setBpm(Number(event.target.value))}
+            onChange={(event) => applyBpm(Number(event.target.value))}
             className="w-full accent-cyan-400"
           />
 
@@ -156,7 +170,7 @@ export function MetronomeView() {
               <button
                 key={preset}
                 type="button"
-                onClick={() => setBpm(preset)}
+                onClick={() => applyBpm(preset)}
                 className="rounded-lg border border-white/10 px-3 py-1 text-xs text-zinc-200 hover:border-cyan-300/60"
               >
                 {preset}
@@ -234,7 +248,7 @@ export function MetronomeView() {
           <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
-              key={`${isRunning ? 'run' : 'stop'}-${bpm}`}
+              key={`${isRunning ? 'run' : 'stop'}-${bpm}-${animationSeed}`}
               animate={{ rotate: isRunning ? [-28, 28] : 0 }}
               transition={{
                 duration: Math.max(0.25, 60 / bpm),
