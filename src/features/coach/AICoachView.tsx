@@ -10,6 +10,7 @@ import { buildChallengesSnapshot } from '../../core/services/analysis/challenges
 import { buildCoachReport, formatSourceSummary } from '../../core/services/analysis/coachEngine'
 import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPersonalProgressSnapshot } from '../../core/services/analysis/personalProgress'
+import { clearBaselineBoost, injectBaselineBoost } from '../../core/services/analysis/progressionTestTools'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { clearAdaptivePlan, loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
 import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
@@ -78,9 +79,41 @@ export function AICoachView() {
     setAdaptivePlan(null)
   }
 
+  async function handleFastForwardTest() {
+    await injectBaselineBoost(4)
+    const next = await listPracticeEvents(5000)
+    setRecentEvents(next)
+  }
+
+  async function handleClearFastForwardTest() {
+    await clearBaselineBoost()
+    const next = await listPracticeEvents(5000)
+    setRecentEvents(next)
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader title="AI Coach" subtitle="[v0.4.9] Personal coaching with baseline-gated progression planning." />
+
+      <GlassCard className="space-y-2">
+        <SectionHeader title="Testing Controls" subtitle="Temporary baseline acceleration tools." />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleFastForwardTest()}
+            className="rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
+          >
+            Fast-Forward +4 Days (Test)
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleClearFastForwardTest()}
+            className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+          >
+            Clear Fast-Forward (Test)
+          </button>
+        </div>
+      </GlassCard>
 
       <GlassCard className="space-y-3">
         <p className="text-sm text-zinc-200">{report.summary}</p>
