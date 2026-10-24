@@ -5,6 +5,7 @@ import { buildPersonalProgressSnapshot } from './personalProgress'
 describe('buildPersonalProgressSnapshot', () => {
   it('returns baseline snapshot for empty history', () => {
     const snapshot = buildPersonalProgressSnapshot([], new Date('2026-10-24T12:00:00.000Z'))
+    expect(snapshot.baselineReady).toBe(false)
     expect(snapshot.qualityScore).toBeGreaterThanOrEqual(0)
     expect(snapshot.cadenceScore).toBe(0)
     expect(snapshot.activeDaysLast7).toBe(0)
@@ -35,6 +36,7 @@ describe('buildPersonalProgressSnapshot', () => {
       },
     ]
     const snapshot = buildPersonalProgressSnapshot(events, new Date('2026-10-24T12:00:00.000Z'))
+    expect(snapshot.baselineReady).toBe(false)
     expect(snapshot.activeDaysLast7).toBeGreaterThan(0)
     expect(snapshot.completionRatio).toBe(100)
   })

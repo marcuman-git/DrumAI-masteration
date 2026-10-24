@@ -2,6 +2,11 @@ import type { PracticeEvent } from '../../types/drumming'
 import { buildPracticeMetrics } from './practiceMetrics'
 
 export interface PersonalProgressSnapshot {
+  baselineReady: boolean
+  baselineRequiredMinutes: number
+  baselineRequiredDays: number
+  baselineMinutesProgress: number
+  baselineDaysProgress: number
   qualityScore: number
   cadenceScore: number
   focusScore: number
@@ -13,6 +18,8 @@ export interface PersonalProgressSnapshot {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+export const BASELINE_REQUIRED_MINUTES = 180
+export const BASELINE_REQUIRED_DAYS = 7
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -35,6 +42,11 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
   const eventDaySet = new Set(events.map((event) => dateKey(new Date(event.timestamp))))
   const activeDaysLast7 = last7Keys.filter((key) => eventDaySet.has(key)).length
   const cadenceScore = Math.round((activeDaysLast7 / 7) * 100)
+  const firstTimestamp = events.length
+    ? Math.min(...events.map((event) => +new Date(event.timestamp)))
+    : null
+  const historyDays = firstTimestamp === null ? 0 : Math.max(1, Math.floor((+now - firstTimestamp) / DAY_MS) + 1)
+  const baselineReady = metrics.practiceMinutes >= BASELINE_REQUIRED_MINUTES && historyDays >= BASELINE_REQUIRED_DAYS
 
   const focusScore = metrics.moduleUsage.length ? metrics.moduleUsage[0].percent : 0
   const weekly = metrics.weeklyTrend
@@ -64,6 +76,11 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
   ]
 
   return {
+    baselineReady,
+    baselineRequiredMinutes: BASELINE_REQUIRED_MINUTES,
+    baselineRequiredDays: BASELINE_REQUIRED_DAYS,
+    baselineMinutesProgress: Math.min(metrics.practiceMinutes, BASELINE_REQUIRED_MINUTES),
+    baselineDaysProgress: Math.min(historyDays, BASELINE_REQUIRED_DAYS),
     qualityScore,
     cadenceScore,
     focusScore,
