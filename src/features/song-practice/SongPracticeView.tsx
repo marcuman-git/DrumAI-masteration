@@ -144,7 +144,7 @@ export function SongPracticeView() {
               className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
               disabled={!selectedTrack || isPlaying}
             >
-              <Play size={12} /> Count-in + Play
+              <Play size={12} /> {isPlaying ? 'Playing...' : 'Count-in + Play'}
             </button>
             <button
               type="button"
