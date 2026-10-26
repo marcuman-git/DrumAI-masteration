@@ -27,6 +27,16 @@ const subdivisionLabelByValue: Record<number, string> = {
   7: 'Septuplet',
 }
 
+const accentOptions = [
+  { label: 'No Accent', value: 'none' },
+  { label: 'Beat 1 (Default)', value: 'beat1' },
+  { label: 'Beat 2', value: 'beat2' },
+  { label: 'Beat 3', value: 'beat3' },
+  { label: 'Beat 4', value: 'beat4' },
+] as const
+
+type AccentMode = (typeof accentOptions)[number]['value']
+
 export function MetronomeView() {
   const engineRef = useRef(new MetronomeEngine())
   const tapTimes = useRef<number[]>([])
@@ -40,31 +50,52 @@ export function MetronomeView() {
   const [clickVolume, setClickVolume] = useState(0.3)
   const [randomTempo, setRandomTempo] = useState(false)
   const [increasingTempo, setIncreasingTempo] = useState(false)
+  const [accentMode, setAccentMode] = useState<AccentMode>('beat1')
   const [animationSeed, setAnimationSeed] = useState(0)
 
-  const accentPattern = useMemo(() => [1.8, 1, 1, 1], [])
+  const accentPattern = useMemo(() => {
+    switch (accentMode) {
+      case 'none':
+        return [1, 1, 1, 1]
+      case 'beat2':
+        return [1, 1.8, 1, 1]
+      case 'beat3':
+        return [1, 1, 1.8, 1]
+      case 'beat4':
+        return [1, 1, 1, 1.8]
+      default:
+        return [1.8, 1, 1, 1]
+    }
+  }, [accentMode])
+
+  const metronomeConfig = useMemo(
+    () => ({
+      bpm,
+      subdivision,
+      swing,
+      humanizeMs: humanize,
+      accentPattern,
+      clickVolume,
+    }),
+    [accentPattern, bpm, clickVolume, humanize, subdivision, swing],
+  )
 
   useEffect(() => {
     if (!isRunning) return
 
-    engineRef.current.start(
-      {
-        bpm,
-        subdivision,
-        swing,
-        humanizeMs: humanize,
-        accentPattern,
-        clickVolume,
-      },
-      () => {
-        // no-op visual pulse handled by animation timing
-      },
-    )
+    engineRef.current.start(metronomeConfig, () => {
+      // no-op visual pulse handled by animation timing
+    })
 
     return () => {
       engineRef.current.stop()
     }
-  }, [isRunning, bpm, subdivision, swing, humanize, accentPattern, clickVolume])
+  }, [isRunning, metronomeConfig])
+
+  useEffect(() => {
+    if (!isRunning) return
+    engineRef.current.updateConfig(metronomeConfig)
+  }, [isRunning, metronomeConfig])
 
   useEffect(() => {
     if (!randomTempo || !isRunning) return
@@ -241,6 +272,8 @@ export function MetronomeView() {
 
             <label className="text-xs text-zinc-300">
               Swing {swing.toFixed(2)}
+              <span className="mt-1 block text-[10px] text-zinc-500">(0 = even timing)</span>
+              <span className="block text-[10px] text-zinc-500">(&gt;0 = shuffle feel)</span>
               <input
                 type="range"
                 min={0}
@@ -254,6 +287,8 @@ export function MetronomeView() {
 
             <label className="text-xs text-zinc-300">
               Humanize {humanize}ms
+              <span className="mt-1 block text-[10px] text-zinc-500">(0ms = strict timing)</span>
+              <span className="block text-[10px] text-zinc-500">(&gt;0 = more natural, less stable)</span>
               <input
                 type="range"
                 min={0}
@@ -264,6 +299,21 @@ export function MetronomeView() {
               />
             </label>
           </div>
+
+          <label className="block text-xs text-zinc-300">
+            Accent
+            <select
+              value={accentMode}
+              onChange={(event) => setAccentMode(event.target.value as AccentMode)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              {accentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="block text-xs text-zinc-300">
             Click Volume {Math.round(clickVolume * 100)}%
