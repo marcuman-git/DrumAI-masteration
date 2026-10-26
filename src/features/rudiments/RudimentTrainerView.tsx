@@ -15,39 +15,23 @@ const rudiments = {
 
 const stickingExamples = ['R L R R L R L L', 'R L R L R R L L', 'R R L R L L R L']
 
-function playTick(frequency: number) {
-  const context = new AudioContext()
-  const osc = context.createOscillator()
-  const gain = context.createGain()
-
-  osc.frequency.value = frequency
-  osc.type = 'triangle'
-  gain.gain.setValueAtTime(0.0001, context.currentTime)
-  gain.gain.linearRampToValueAtTime(0.2, context.currentTime + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.08)
-
-  osc.connect(gain)
-  gain.connect(context.destination)
-  osc.start()
-  osc.stop(context.currentTime + 0.09)
-
-  window.setTimeout(() => void context.close(), 120)
-}
-
 export function RudimentTrainerView() {
   const [category, setCategory] = useState<keyof typeof rudiments>('Paradiddles')
   const [mode, setMode] = useState<'Learn' | 'Practice' | 'Challenge' | 'Mastery'>('Practice')
   const [tempo, setTempo] = useState(60)
   const [isPlaying, setIsPlaying] = useState(false)
   const [loopPlayback, setLoopPlayback] = useState(false)
+  const [patternNonce, setPatternNonce] = useState(0)
+  const [activeTokenIndex, setActiveTokenIndex] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
   const sessionIdRef = useRef<string | null>(null)
   const loopRef = useRef(loopPlayback)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const stepRef = useRef(0)
+  const tempoRef = useRef(tempo)
+  const tokensRef = useRef<string[]>([])
 
-  const pattern = useMemo(
-    () => stickingExamples[Math.floor(Math.random() * stickingExamples.length)],
-    [category, mode],
-  )
+  const pattern = useMemo(() => stickingExamples[patternNonce % stickingExamples.length], [patternNonce])
   const recommendation = useMemo(
     () =>
       mode === 'Learn'
@@ -65,9 +49,61 @@ export function RudimentTrainerView() {
   }, [loopPlayback])
 
   useEffect(() => {
+    tempoRef.current = tempo
+  }, [tempo])
+
+  useEffect(() => {
+    setPatternNonce((value) => value + 1)
+  }, [category, mode])
+
+  function stopScheduler() {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  function playTick(frequency: number) {
+    const context = audioContextRef.current
+    if (!context) return
+    const osc = context.createOscillator()
+    const gain = context.createGain()
+    const now = context.currentTime
+
+    osc.frequency.value = frequency
+    osc.type = 'triangle'
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+    osc.connect(gain)
+    gain.connect(context.destination)
+    osc.start(now)
+    osc.stop(now + 0.09)
+  }
+
+  function scheduleNextStep() {
+    const tokens = tokensRef.current
+    if (!tokens.length) return
+    const index = stepRef.current % tokens.length
+    const token = tokens[index]
+    setActiveTokenIndex(index)
+    playTick(token === 'R' ? 900 : 650)
+    stepRef.current += 1
+
+    if (!loopRef.current && stepRef.current >= tokens.length) {
+      handleStop()
+      return
+    }
+
+    const intervalMs = Math.max(120, Math.round(60000 / tempoRef.current))
+    timerRef.current = window.setTimeout(scheduleNextStep, intervalMs)
+  }
+
+  useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current)
+      stopScheduler()
+      if (audioContextRef.current) {
+        void audioContextRef.current.close()
       }
       if (sessionIdRef.current) {
         stopPracticeSession('rudiments', sessionIdRef.current, { reason: 'unmount' })
@@ -76,11 +112,12 @@ export function RudimentTrainerView() {
   }, [])
 
   function handlePlay() {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-    }
+    stopScheduler()
     if (sessionIdRef.current) {
       stopPracticeSession('rudiments', sessionIdRef.current, { reason: 'restart' })
+    }
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext()
     }
 
     const sessionId = startPracticeSession('rudiments', { category, mode, tempo })
@@ -88,31 +125,30 @@ export function RudimentTrainerView() {
     void trackPracticeEvent('rudiments', 'score', { action: 'play', category, mode, tempo }, sessionId)
 
     setIsPlaying(true)
-    const intervalMs = Math.max(120, Math.round(60000 / tempo))
-    let step = 0
-
-    timerRef.current = window.setInterval(() => {
-      const tokens = pattern.split(' ')
-      const token = tokens[step % tokens.length]
-      playTick(token === 'R' ? 900 : 650)
-      step += 1
-
-      if (!loopRef.current && step >= tokens.length) {
-        handleStop()
-      }
-    }, intervalMs)
+    tokensRef.current = pattern.split(' ')
+    stepRef.current = 0
+    scheduleNextStep()
   }
 
   function handleStop() {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
+    stopScheduler()
     if (sessionIdRef.current) {
       stopPracticeSession('rudiments', sessionIdRef.current, { category, mode, tempo })
       sessionIdRef.current = null
     }
     setIsPlaying(false)
+    setActiveTokenIndex(null)
+  }
+
+  function handleRandomizedPractice() {
+    const categories = Object.keys(rudiments) as Array<keyof typeof rudiments>
+    const modes: Array<'Learn' | 'Practice' | 'Challenge' | 'Mastery'> = ['Learn', 'Practice', 'Challenge', 'Mastery']
+    const nextCategory = categories[Math.floor(Math.random() * categories.length)]
+    const nextMode = modes[Math.floor(Math.random() * modes.length)]
+    setCategory(nextCategory)
+    setMode(nextMode)
+    setPatternNonce(Math.floor(Math.random() * 1000))
+    void trackPracticeEvent('rudiments', 'score', { action: 'randomize', category: nextCategory, mode: nextMode })
   }
 
   return (
@@ -145,7 +181,20 @@ export function RudimentTrainerView() {
 
           <div className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4">
             <p className="text-xs uppercase tracking-wide text-cyan-100">Animated Sticking Display</p>
-            <p className="mt-2 text-3xl font-semibold tracking-[0.35em] text-zinc-50">{pattern}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {pattern.split(' ').map((token, index) => (
+                <span
+                  key={`${token}-${index}`}
+                  className={`rounded-md px-2 py-1 text-2xl font-semibold ${
+                    activeTokenIndex === index
+                      ? 'bg-cyan-200 text-zinc-950'
+                      : 'bg-transparent text-zinc-50'
+                  }`}
+                >
+                  {token}
+                </span>
+              ))}
+            </div>
           </div>
           <p className="text-sm text-zinc-300">
             Recommended practice: <span className="text-cyan-200">{recommendation}</span>
@@ -168,7 +217,7 @@ export function RudimentTrainerView() {
               onClick={handlePlay}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
             >
-              <Play size={12} /> Play
+              <Play size={12} /> {isPlaying ? 'Playing...' : 'Play'}
             </button>
             <button
               type="button"
@@ -206,6 +255,7 @@ export function RudimentTrainerView() {
           ))}
           <button
             type="button"
+            onClick={handleRandomizedPractice}
             className="inline-flex items-center gap-2 rounded-lg border border-violet-300/40 bg-violet-300/10 px-3 py-2 text-xs text-violet-100"
           >
             <Shuffle size={14} /> Randomized Practice
