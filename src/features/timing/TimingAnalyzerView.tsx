@@ -9,7 +9,6 @@ import type { TimingHit } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 
-const INTERVAL_MS = 500
 const CALIBRATION_MS = 1800
 
 const drillPatterns = {
@@ -47,6 +46,7 @@ export function TimingAnalyzerView() {
   const [triggerThreshold, setTriggerThreshold] = useState(28)
   const [cooldownMs, setCooldownMs] = useState(120)
   const [drillMode, setDrillMode] = useState<DrillMode>('Singles (L/R)')
+  const [referenceBpm, setReferenceBpm] = useState(120)
   const [isCalibrating, setIsCalibrating] = useState(false)
   const [calibration, setCalibration] = useState<{ noiseFloor: number; peak: number; calibratedAt: string } | null>(null)
   const [lastInputSource, setLastInputSource] = useState<'mic' | 'midi' | null>(null)
@@ -70,7 +70,7 @@ export function TimingAnalyzerView() {
 
     referenceClickRef.current.start(
       {
-        bpm: 120,
+        bpm: referenceBpm,
         subdivision: 1,
         swing: 0,
         humanizeMs: 0,
@@ -85,7 +85,7 @@ export function TimingAnalyzerView() {
     return () => {
       referenceClickRef.current.stop()
     }
-  }, [tracking])
+  }, [tracking, referenceBpm])
 
   useEffect(() => {
     if (!tracking) return
@@ -223,9 +223,10 @@ export function TimingAnalyzerView() {
   }
 
   function registerHit(actualAt: number, inputSource: 'mic' | 'midi') {
+    const intervalMs = 60000 / referenceBpm
     const elapsed = actualAt - startRef.current
-    const expectedIndex = Math.round(elapsed / INTERVAL_MS)
-    const expectedAt = expectedIndex * INTERVAL_MS
+    const expectedIndex = Math.round(elapsed / intervalMs)
+    const expectedAt = expectedIndex * intervalMs
     const deviation = elapsed - expectedAt
     const quality = classifyDeviation(deviation)
     const pattern = drillPatterns[drillMode]
@@ -233,16 +234,17 @@ export function TimingAnalyzerView() {
 
     if (lastExpectedIndexRef.current >= 0 && expectedIndex - lastExpectedIndexRef.current > 1) {
       for (let missedIndex = lastExpectedIndexRef.current + 1; missedIndex < expectedIndex; missedIndex += 1) {
-        const missedExpectedAt = missedIndex * INTERVAL_MS
+        const missedExpectedAt = missedIndex * intervalMs
+        const missedHand = pattern[(hits.length + insertedMisses) % pattern.length]
         const missedHit: TimingHit = {
           id: crypto.randomUUID(),
           expectedAt: missedExpectedAt,
-          actualAt: missedExpectedAt + INTERVAL_MS,
-          deviationMs: INTERVAL_MS,
+          actualAt: missedExpectedAt + intervalMs,
+          deviationMs: Math.round(intervalMs),
           quality: 'missed',
+          hand: missedHand,
         }
 
-        const missedHand = pattern[(hits.length + insertedMisses) % pattern.length]
         addHit(missedHit)
         void trackPracticeEvent(
           'timing-analyzer',
@@ -255,6 +257,7 @@ export function TimingAnalyzerView() {
     }
 
     lastExpectedIndexRef.current = expectedIndex
+    const expectedHand = pattern[(hits.length + insertedMisses) % pattern.length]
 
     const hit: TimingHit = {
       id: crypto.randomUUID(),
@@ -262,8 +265,8 @@ export function TimingAnalyzerView() {
       actualAt: elapsed,
       deviationMs: Math.round(deviation),
       quality,
+      hand: expectedHand,
     }
-    const expectedHand = pattern[(hits.length + insertedMisses) % pattern.length]
 
     addHit(hit)
     setLastInputSource(inputSource)
@@ -301,6 +304,7 @@ export function TimingAnalyzerView() {
         hitCount: hits.length,
         accuracy,
         consistency,
+        bpm: referenceBpm,
       })
       void trackPracticeEvent(
         'timing-analyzer',
@@ -311,6 +315,7 @@ export function TimingAnalyzerView() {
           consistency,
           averageDeviation,
           drillMode,
+          bpm: referenceBpm,
         },
         sessionIdRef.current,
       )
@@ -374,7 +379,7 @@ export function TimingAnalyzerView() {
 
     hits.forEach((hit, index) => {
       if (hit.quality === 'missed') return
-      const hand = pattern[index % pattern.length]
+      const hand = hit.hand ?? pattern[index % pattern.length]
       if (hand === 'L') left.push(hit.deviationMs)
       else right.push(hit.deviationMs)
     })
@@ -548,6 +553,29 @@ export function TimingAnalyzerView() {
               <Area type="monotone" dataKey="deviation" stroke="#67e8f9" fill="#22d3ee33" />
             </AreaChart>
           </ResponsiveContainer>
+          <div className="mt-3 flex justify-center">
+            <div className="grid grid-cols-8 gap-1">
+              {hits.slice(-24).map((hit) => (
+                <div
+                  key={hit.id}
+                  className="grid h-8 w-8 place-items-center rounded text-[10px] font-semibold text-zinc-950"
+                  style={{
+                    background:
+                      hit.quality === 'perfect'
+                        ? '#22d3ee'
+                        : hit.quality === 'early'
+                          ? '#f59e0b'
+                          : hit.quality === 'missed'
+                            ? '#6b7280'
+                            : '#f43f5e',
+                  }}
+                  title={`${hit.deviationMs > 0 ? '+' : ''}${hit.deviationMs}ms`}
+                >
+                  {hit.hand ?? '-'}
+                </div>
+              ))}
+            </div>
+          </div>
         </GlassCard>
 
         <GlassCard className="space-y-3">
@@ -585,6 +613,18 @@ export function TimingAnalyzerView() {
           </div>
 
           <label className="block text-xs text-zinc-300">
+            Reference BPM {referenceBpm}
+            <input
+              type="range"
+              min={40}
+              max={240}
+              value={referenceBpm}
+              onChange={(event) => setReferenceBpm(Number(event.target.value))}
+              className="mt-2 w-full accent-cyan-400"
+            />
+          </label>
+
+          <label className="block text-xs text-zinc-300">
             Trigger Sensitivity {triggerThreshold}%
             <input
               type="range"
@@ -598,6 +638,7 @@ export function TimingAnalyzerView() {
           <p className="text-[11px] text-zinc-400">
             Higher sensitivity catches softer hits but may detect claps/voice. Lower sensitivity ignores weak noise and focuses on stronger stick attacks.
           </p>
+          <p className="text-[11px] text-zinc-500">Suggested: 24-34 for quiet rooms, 35-48 for noisy rooms.</p>
 
           <label className="block text-xs text-zinc-300">
             Hit Cooldown {cooldownMs}ms
@@ -610,32 +651,16 @@ export function TimingAnalyzerView() {
               className="mt-2 w-full accent-violet-400"
             />
           </label>
+          <p className="text-[11px] text-zinc-400">
+            Cooldown is the minimum gap between detected hits; higher values reduce double-triggering.
+          </p>
+          <p className="text-[11px] text-zinc-500">Suggested: 90-140ms for singles, 140-190ms for louder rooms.</p>
 
           <p className="text-sm text-zinc-200">Estimated Left Hand Avg: {handStats.leftAvg} ms</p>
           <p className="text-sm text-zinc-200">Estimated Right Hand Avg: {handStats.rightAvg} ms</p>
           <p className="text-xs text-zinc-400">
             Perfect {qualityCounts.perfect} | Early {qualityCounts.early} | Late {qualityCounts.late} | Missed {qualityCounts.missed}
           </p>
-
-          <div className="grid grid-cols-5 gap-1">
-            {hits.slice(-25).map((hit) => (
-              <div
-                key={hit.id}
-                className="h-8 rounded"
-                style={{
-                  background:
-                    hit.quality === 'perfect'
-                      ? '#22d3ee'
-                      : hit.quality === 'early'
-                        ? '#f59e0b'
-                        : hit.quality === 'missed'
-                          ? '#6b7280'
-                          : '#f43f5e',
-                }}
-                title={`${hit.deviationMs > 0 ? '+' : ''}${hit.deviationMs}ms`}
-              />
-            ))}
-          </div>
 
           {!hits.length ? <p className="text-xs text-zinc-500">Start tracking, then play your pad/snare steadily to populate analysis.</p> : null}
         </GlassCard>
