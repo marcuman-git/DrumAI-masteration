@@ -173,7 +173,7 @@ export function MetronomeView() {
     <div className="space-y-4">
       <SectionHeader
         title="Smart Metronome"
-        subtitle="[v0.4.9] Advanced click engine with random/increasing tempo modes, accents, swing, and visual pulse."
+        subtitle="Advanced click engine with random/increasing tempo modes, accents, swing, and visual pulse."
       />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
