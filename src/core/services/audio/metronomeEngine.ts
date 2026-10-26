@@ -12,23 +12,27 @@ export class MetronomeEngine {
   private timer: number | null = null
   private nextNoteTime = 0
   private beatIndex = 0
+  private config: MetronomeConfig | null = null
+  private tickHandler: ((beat: number, time: number) => void) | null = null
 
   start(config: MetronomeConfig, onTick: (beat: number, time: number) => void): void {
+    this.config = config
+    this.tickHandler = onTick
     if (this.timer) return
     this.context = this.context ?? new AudioContext()
     this.nextNoteTime = this.context.currentTime
 
     const schedule = () => {
-      if (!this.context) return
+      if (!this.context || !this.config) return
 
       while (this.nextNoteTime < this.context.currentTime + 0.1) {
-        this.scheduleClick(config, this.nextNoteTime, this.beatIndex)
-        onTick(this.beatIndex, this.nextNoteTime)
+        this.scheduleClick(this.config, this.nextNoteTime, this.beatIndex)
+        this.tickHandler?.(this.beatIndex, this.nextNoteTime)
 
-        const beatsPerSecond = config.bpm / 60
-        const step = 1 / (beatsPerSecond * config.subdivision)
-        const swingOffset = this.beatIndex % 2 === 1 ? step * (config.swing * 0.33) : 0
-        const humanizeOffset = (Math.random() * 2 - 1) * (config.humanizeMs / 1000)
+        const beatsPerSecond = this.config.bpm / 60
+        const step = 1 / (beatsPerSecond * this.config.subdivision)
+        const swingOffset = this.beatIndex % 2 === 1 ? step * (this.config.swing * 0.33) : 0
+        const humanizeOffset = (Math.random() * 2 - 1) * (this.config.humanizeMs / 1000)
 
         this.nextNoteTime += step + swingOffset + humanizeOffset
         this.beatIndex += 1
@@ -38,11 +42,18 @@ export class MetronomeEngine {
     this.timer = window.setInterval(schedule, 25)
   }
 
+  updateConfig(config: MetronomeConfig): void {
+    this.config = config
+  }
+
   stop(): void {
     if (this.timer) {
       window.clearInterval(this.timer)
       this.timer = null
     }
+    this.config = null
+    this.tickHandler = null
+    this.beatIndex = 0
   }
 
   private scheduleClick(config: MetronomeConfig, time: number, beat: number): void {
