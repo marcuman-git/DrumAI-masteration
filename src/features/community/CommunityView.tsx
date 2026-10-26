@@ -49,7 +49,7 @@ export function CommunityView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Community" subtitle="[v0.4.6] Leaderboard filters + streamlined social dashboard." />
+      <SectionHeader title="Community" subtitle="Leaderboard filters + streamlined social dashboard." />
 
       <div className="grid gap-3 lg:grid-cols-[1.3fr_2fr]">
         <GlassCard className="space-y-3">
