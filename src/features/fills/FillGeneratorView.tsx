@@ -195,7 +195,7 @@ export function FillGeneratorView() {
     <div className="space-y-4">
       <SectionHeader
         title="Fill Generator"
-        subtitle="[v0.4.6] Chart view with note/rest highlighting, start-hand control, and playback verification."
+        subtitle="Chart view with note/rest highlighting, start-hand control, and playback verification."
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
