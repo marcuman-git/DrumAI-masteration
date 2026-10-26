@@ -63,6 +63,7 @@ describe('adaptiveScheduler', () => {
     const date = todayKey(new Date('2026-10-24T12:00:00.000Z'))
     const first = ensureTodayPlan(null, { profile, metrics, report }, date)
     const rebuilt = rebuildTodayPlan(first, { profile, metrics, report }, date)
-    expect(rebuilt.dailyByDate[date].targetMinutes).toBe(profile.dailyMinutes)
+    expect(rebuilt.dailyByDate[date].targetMinutes).toBeGreaterThanOrEqual(Math.round(profile.dailyMinutes * 0.75))
+    expect(rebuilt.dailyByDate[date].targetMinutes).toBeLessThanOrEqual(Math.round(profile.dailyMinutes * 1.2))
   })
 })

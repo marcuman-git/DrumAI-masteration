@@ -71,8 +71,61 @@ function recalc(day: AdaptiveDayPlan): AdaptiveDayPlan {
   }
 }
 
-function buildBlocks(context: AdaptiveSchedulerContext, previousDayCompletion: number): AdaptivePlanBlock[] {
-  const targetMinutes = context.profile.dailyMinutes
+interface DayAdjustments {
+  targetMinutes: number
+  fatigueMode: boolean
+  carryoverByFocus: Partial<Record<SkillKey, number>>
+}
+
+function buildDayAdjustments(
+  context: AdaptiveSchedulerContext,
+  previousDayCompletion: number,
+  previousDay: AdaptiveDayPlan | null,
+): DayAdjustments {
+  const baseTarget = context.profile.dailyMinutes
+  const recentConsistency = context.metrics.weeklyTrend.slice(-3).map((item) => item.consistency)
+  const avgRecentConsistency = recentConsistency.length
+    ? recentConsistency.reduce((acc, value) => acc + value, 0) / recentConsistency.length
+    : 0
+  const fatigueMode = avgRecentConsistency > 0 && avgRecentConsistency < 45
+
+  let scaledTarget = baseTarget
+  if (fatigueMode) {
+    scaledTarget = Math.round(baseTarget * 0.85)
+  } else if (previousDayCompletion >= 85) {
+    scaledTarget = Math.round(baseTarget * 1.05)
+  } else if (previousDayCompletion <= 35) {
+    scaledTarget = Math.round(baseTarget * 0.9)
+  }
+
+  const carryoverByFocus: Partial<Record<SkillKey, number>> = {}
+  if (previousDay) {
+    const missed = previousDay.blocks.filter((block) => !block.completed)
+    const missedTotal = missed.reduce((acc, block) => acc + block.minutes, 0)
+    const carryoverTotal = Math.min(Math.round(missedTotal * 0.4), Math.round(baseTarget * 0.25))
+
+    if (carryoverTotal > 0 && missedTotal > 0) {
+      missed.forEach((block) => {
+        const share = Math.round((block.minutes / missedTotal) * carryoverTotal)
+        carryoverByFocus[block.focus] = (carryoverByFocus[block.focus] ?? 0) + share
+      })
+    }
+  }
+
+  return {
+    targetMinutes: clamp(scaledTarget, Math.max(15, Math.round(baseTarget * 0.75)), Math.round(baseTarget * 1.2)),
+    fatigueMode,
+    carryoverByFocus,
+  }
+}
+
+function buildBlocks(
+  context: AdaptiveSchedulerContext,
+  previousDayCompletion: number,
+  previousDay: AdaptiveDayPlan | null,
+): AdaptivePlanBlock[] {
+  const adjustments = buildDayAdjustments(context, previousDayCompletion, previousDay)
+  const targetMinutes = adjustments.targetMinutes
   const weighted = context.report.focusWeights.length
     ? context.report.focusWeights
     : [
@@ -82,15 +135,18 @@ function buildBlocks(context: AdaptiveSchedulerContext, previousDayCompletion: n
         { focus: 'dynamics' as SkillKey, percent: 25 },
       ]
 
-  const trendHint =
-    previousDayCompletion >= 80
+  const trendHint = adjustments.fatigueMode
+    ? 'Fatigue-aware day active. Lower intensity and prioritize clean timing.'
+    : previousDayCompletion >= 80
       ? 'Yesterday completion was strong. Add slight intensity (+5% control target).'
       : previousDayCompletion <= 35
         ? 'Yesterday completion was low. Keep tempo conservative and focus on consistency.'
         : 'Maintain steady pace and aim for clean repetitions.'
 
   const blocks = weighted.map((item, index) => {
-    const minutes = Math.max(5, Math.round((targetMinutes * item.percent) / 100))
+    const baseMinutes = Math.max(5, Math.round((targetMinutes * item.percent) / 100))
+    const carryover = adjustments.carryoverByFocus[item.focus] ?? 0
+    const minutes = baseMinutes + carryover
     return {
       id: `${item.focus}-${index}`,
       focus: item.focus,
@@ -111,20 +167,34 @@ function buildBlocks(context: AdaptiveSchedulerContext, previousDayCompletion: n
   return blocks
 }
 
-function previousCompletionPercent(state: AdaptivePlanState, date: string): number {
+function previousDayKey(state: AdaptivePlanState, date: string): string | null {
   const keys = Object.keys(state.dailyByDate).filter((key) => key < date).sort()
-  const last = keys.at(-1)
+  return keys.at(-1) ?? null
+}
+
+function previousCompletionPercent(state: AdaptivePlanState, date: string): number {
+  const last = previousDayKey(state, date)
   if (!last) return 0
   return state.dailyByDate[last]?.completionPercent ?? 0
 }
 
 export function createAdaptiveDayPlan(context: AdaptiveSchedulerContext, date: string, previousDayCompletion: number): AdaptiveDayPlan {
+  return createAdaptiveDayPlanWithHistory(context, date, previousDayCompletion, null)
+}
+
+function createAdaptiveDayPlanWithHistory(
+  context: AdaptiveSchedulerContext,
+  date: string,
+  previousDayCompletion: number,
+  previousDay: AdaptiveDayPlan | null,
+): AdaptiveDayPlan {
+  const targetMinutes = buildDayAdjustments(context, previousDayCompletion, previousDay).targetMinutes
   return recalc({
     date,
-    targetMinutes: context.profile.dailyMinutes,
+    targetMinutes,
     completedMinutes: 0,
     completionPercent: 0,
-    blocks: buildBlocks(context, previousDayCompletion),
+    blocks: buildBlocks(context, previousDayCompletion, previousDay),
   })
 }
 
@@ -147,8 +217,10 @@ export function ensureTodayPlan(
     }
   }
 
+  const prevKey = previousDayKey(base, date)
   const prevCompletion = previousCompletionPercent(base, date)
-  const day = createAdaptiveDayPlan(context, date, prevCompletion)
+  const prevDay = prevKey ? base.dailyByDate[prevKey] : null
+  const day = createAdaptiveDayPlanWithHistory(context, date, prevCompletion, prevDay)
   return {
     ...base,
     weeklyPlan: context.report.weeklyPlan,
@@ -161,8 +233,10 @@ export function ensureTodayPlan(
 }
 
 export function rebuildTodayPlan(state: AdaptivePlanState, context: AdaptiveSchedulerContext, date = todayKey()): AdaptivePlanState {
+  const prevKey = previousDayKey(state, date)
   const prevCompletion = previousCompletionPercent(state, date)
-  const day = createAdaptiveDayPlan(context, date, prevCompletion)
+  const prevDay = prevKey ? state.dailyByDate[prevKey] : null
+  const day = createAdaptiveDayPlanWithHistory(context, date, prevCompletion, prevDay)
   return {
     ...state,
     updatedAt: new Date().toISOString(),

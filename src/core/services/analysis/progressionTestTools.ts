@@ -4,6 +4,13 @@ import { appendPracticeEvents, listPracticeEvents, replacePracticeEvents } from 
 const TEST_TAG = 'v049-baseline-boost'
 const DAY_MS = 24 * 60 * 60 * 1000
 
+function dateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = `${date.getMonth() + 1}`.padStart(2, '0')
+  const d = `${date.getDate()}`.padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function event(
   moduleId: TrainingModuleId,
   type: PracticeEvent['type'],
@@ -22,14 +29,22 @@ function event(
 }
 
 export async function injectBaselineBoost(days = 4): Promise<void> {
+  const all = await listPracticeEvents(5000)
+  const existingBoostDays = new Set(
+    all
+      .filter((item) => item.payload?.testTag === TEST_TAG)
+      .map((item) => dateKey(new Date(item.timestamp))),
+  )
+  const dayOffsetBase = existingBoostDays.size
   const now = Date.now()
   const generated: PracticeEvent[] = []
 
   for (let day = days; day >= 1; day -= 1) {
-    const base = new Date(now - day * DAY_MS)
+    const offset = dayOffsetBase + day
+    const base = new Date(now - offset * DAY_MS)
     base.setHours(18, 0, 0, 0)
 
-    const sessionA = `boost-metronome-${day}`
+    const sessionA = `boost-metronome-${offset}-${crypto.randomUUID().slice(0, 6)}`
     const startA = new Date(base)
     const stopA = new Date(base.getTime() + 28 * 60 * 1000)
 
@@ -37,12 +52,12 @@ export async function injectBaselineBoost(days = 4): Promise<void> {
       event('metronome', 'start', startA.toISOString(), sessionA),
       event('metronome', 'score', new Date(startA.getTime() + 6 * 60 * 1000).toISOString(), sessionA, {
         testTag: TEST_TAG,
-        bpm: 78 + day,
+        bpm: 78 + ((offset % 9) + 1),
       }),
       event('metronome', 'stop', stopA.toISOString(), sessionA),
     )
 
-    const sessionB = `boost-reading-${day}`
+    const sessionB = `boost-reading-${offset}-${crypto.randomUUID().slice(0, 6)}`
     const startB = new Date(base.getTime() + 35 * 60 * 1000)
     const stopB = new Date(base.getTime() + 60 * 60 * 1000)
 
