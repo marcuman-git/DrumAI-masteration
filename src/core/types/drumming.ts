@@ -56,6 +56,7 @@ export interface TimingHit {
   actualAt: number
   deviationMs: number
   quality: 'perfect' | 'early' | 'late' | 'missed'
+  hand?: 'L' | 'R'
 }
 
 export interface SessionInsight {
