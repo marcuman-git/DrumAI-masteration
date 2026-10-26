@@ -71,10 +71,10 @@ export function RudimentTrainerView() {
     const now = context.currentTime
 
     osc.frequency.value = frequency
-    osc.type = 'triangle'
+    osc.type = frequency >= 1400 ? 'triangle' : 'sine'
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(0.2, now + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.006)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045)
     osc.connect(gain)
     gain.connect(context.destination)
     osc.start(now)
@@ -87,11 +87,11 @@ export function RudimentTrainerView() {
     const index = stepRef.current % tokens.length
     const token = tokens[index]
     setActiveTokenIndex(index)
-    playTick(token === 'R' ? 900 : 650)
+    playTick(token === 'R' ? 1540 : 980)
     stepRef.current += 1
 
     if (!loopRef.current && stepRef.current >= tokens.length) {
-      handleStop()
+      handleStop(false)
       return
     }
 
@@ -119,6 +119,7 @@ export function RudimentTrainerView() {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext()
     }
+    void audioContextRef.current.resume()
 
     const sessionId = startPracticeSession('rudiments', { category, mode, tempo })
     sessionIdRef.current = sessionId
@@ -130,14 +131,16 @@ export function RudimentTrainerView() {
     scheduleNextStep()
   }
 
-  function handleStop() {
+  function handleStop(clearHighlight = true) {
     stopScheduler()
     if (sessionIdRef.current) {
       stopPracticeSession('rudiments', sessionIdRef.current, { category, mode, tempo })
       sessionIdRef.current = null
     }
     setIsPlaying(false)
-    setActiveTokenIndex(null)
+    if (clearHighlight) {
+      setActiveTokenIndex(null)
+    }
   }
 
   function handleRandomizedPractice() {
@@ -221,7 +224,7 @@ export function RudimentTrainerView() {
             </button>
             <button
               type="button"
-              onClick={handleStop}
+              onClick={() => handleStop()}
               disabled={!isPlaying}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-60"
             >
