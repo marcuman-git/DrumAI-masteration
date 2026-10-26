@@ -180,7 +180,7 @@ export default function App() {
                 <Drum size={20} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">DrumMaster AI</h1>
+                <h1 className="text-2xl font-bold tracking-tight">DrumMaster AI - BETA</h1>
                 <p className="text-sm text-zinc-400">
                   The definitive AI-powered ecosystem for timing, technique, groove, musicality, and performance.
                 </p>
