@@ -85,6 +85,18 @@ export function TimingAnalyzerView() {
     return () => {
       referenceClickRef.current.stop()
     }
+  }, [tracking])
+
+  useEffect(() => {
+    if (!tracking) return
+    referenceClickRef.current.updateConfig({
+      bpm: referenceBpm,
+      subdivision: 1,
+      swing: 0,
+      humanizeMs: 0,
+      accentPattern: [1.8, 1, 1, 1],
+      clickVolume: 0.3,
+    })
   }, [tracking, referenceBpm])
 
   useEffect(() => {
