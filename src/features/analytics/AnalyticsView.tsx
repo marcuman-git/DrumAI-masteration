@@ -68,7 +68,7 @@ export function AnalyticsView() {
     <div className="space-y-4">
       <SectionHeader
         title="Analytics"
-        subtitle="[v0.4.9] Personal performance intelligence with baseline-gated progression planning."
+        subtitle="Personal performance intelligence with baseline-gated progression planning."
       />
 
       <div className="flex justify-end">
@@ -154,7 +154,7 @@ export function AnalyticsView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Practice Quality Insights" subtitle="[v0.4.9] Baseline-gated personal quality and progression metrics." />
+        <SectionHeader title="Practice Quality Insights" subtitle="Baseline-gated personal quality and progression metrics." />
         {progress.baselineReady ? (
           <>
             <div className="grid gap-3 md:grid-cols-4">
