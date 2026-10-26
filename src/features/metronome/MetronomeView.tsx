@@ -30,9 +30,7 @@ const subdivisionLabelByValue: Record<number, string> = {
 const accentOptions = [
   { label: 'No Accent', value: 'none' },
   { label: 'Beat 1 (Default)', value: 'beat1' },
-  { label: 'Beat 2', value: 'beat2' },
-  { label: 'Beat 3', value: 'beat3' },
-  { label: 'Beat 4', value: 'beat4' },
+  { label: 'Beat 1 + 3', value: 'beat1-3' },
 ] as const
 
 type AccentMode = (typeof accentOptions)[number]['value']
@@ -57,12 +55,8 @@ export function MetronomeView() {
     switch (accentMode) {
       case 'none':
         return [1, 1, 1, 1]
-      case 'beat2':
-        return [1, 1.8, 1, 1]
-      case 'beat3':
-        return [1, 1, 1.8, 1]
-      case 'beat4':
-        return [1, 1, 1, 1.8]
+      case 'beat1-3':
+        return [1.8, 1, 1.8, 1]
       default:
         return [1.8, 1, 1, 1]
     }
@@ -90,7 +84,7 @@ export function MetronomeView() {
     return () => {
       engineRef.current.stop()
     }
-  }, [isRunning, metronomeConfig])
+  }, [isRunning])
 
   useEffect(() => {
     if (!isRunning) return
