@@ -23,7 +23,7 @@ test('dashboard and key modules load', async ({ page }) => {
   await prepareApp(page)
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'DrumMaster AI' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'DrumMaster AI - BETA' })).toBeVisible()
   await expect(page.getByText('Home Dashboard')).toBeVisible()
   await expect(page.getByRole('button', { name: /smart metronome/i })).toBeVisible()
 
