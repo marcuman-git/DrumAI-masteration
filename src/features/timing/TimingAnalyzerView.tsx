@@ -419,7 +419,7 @@ export function TimingAnalyzerView() {
     <div className="space-y-4">
       <SectionHeader
         title="Timing Analyzer"
-        subtitle="[v0.5.0] Microphone-first hit consistency, per-hand trend analysis, and drill prescriptions."
+        subtitle="Microphone-first hit consistency, per-hand trend analysis, and drill prescriptions."
         right={
           <div className="flex gap-2">
             <button
