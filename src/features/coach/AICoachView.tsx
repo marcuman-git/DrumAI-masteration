@@ -93,7 +93,7 @@ export function AICoachView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="AI Coach" subtitle="[v0.4.9] Personal coaching with baseline-gated progression planning." />
+      <SectionHeader title="AI Coach" subtitle="Personal coaching with baseline-gated progression planning." />
 
       <GlassCard className="space-y-2">
         <SectionHeader title="Testing Controls" subtitle="Temporary baseline acceleration tools." />
@@ -233,7 +233,7 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Gamification Pulse" subtitle="[v0.4.3] Connection to event-derived XP and quests." />
+        <SectionHeader title="Gamification Pulse" subtitle="Connection to event-derived XP and quests." />
         <p className="text-sm text-zinc-200">
           Level {gamification.level} | Total XP {gamification.totalXp} | Today XP {gamification.todayXp} | Next level in{' '}
           {gamification.xpToNextLevel} XP
@@ -254,7 +254,7 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Challenges + Achievements v2" subtitle="[v0.4.4] Coaching alignment signals." />
+        <SectionHeader title="Challenges + Achievements v2" subtitle="Coaching alignment signals." />
         <p className="text-sm text-zinc-300">
           Weekly completed: {challenges.weeklyChallenges.filter((challenge) => challenge.completed).length}/
           {challenges.weeklyChallenges.length} | Seasonal completed:{' '}
@@ -268,7 +268,7 @@ export function AICoachView() {
       </GlassCard>
 
       <GlassCard className="space-y-3">
-        <SectionHeader title="Personal Progression Planner" subtitle="[v0.4.9] Unlocks after baseline (7 days + 180 min)." />
+        <SectionHeader title="Personal Progression Planner" subtitle="Unlocks after baseline (7 days + 180 min)." />
         {personalProgress.baselineReady ? (
           <>
             <div className="grid gap-3 md:grid-cols-4">
