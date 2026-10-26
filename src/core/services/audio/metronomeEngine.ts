@@ -62,7 +62,8 @@ export class MetronomeEngine {
     const osc = this.context.createOscillator()
     const gain = this.context.createGain()
 
-    const accent = config.accentPattern[beat % config.accentPattern.length] ?? 1
+    const beatStep = Math.floor(beat / Math.max(1, config.subdivision))
+    const accent = config.accentPattern[beatStep % config.accentPattern.length] ?? 1
     osc.type = accent > 1 ? 'triangle' : 'sine'
     osc.frequency.value = accent > 1 ? 1540 : 980
 
