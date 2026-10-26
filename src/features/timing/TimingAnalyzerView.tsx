@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { MetronomeEngine } from '../../core/services/audio/metronomeEngine'
 import { connectMidi } from '../../core/services/midi/midiService'
 import { accuracyFromHits, classifyDeviation, consistencyFromHits } from '../../core/services/analysis/timingMetrics'
 import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
@@ -53,11 +54,37 @@ export function TimingAnalyzerView() {
   const startRef = useRef<number>(0)
   const sessionIdRef = useRef<string | null>(null)
   const lastExpectedIndexRef = useRef<number>(-1)
+  const referenceClickRef = useRef(new MetronomeEngine())
 
   useEffect(() => {
     if (!tracking) return
     startRef.current = performance.now()
     lastExpectedIndexRef.current = -1
+  }, [tracking])
+
+  useEffect(() => {
+    if (!tracking) {
+      referenceClickRef.current.stop()
+      return
+    }
+
+    referenceClickRef.current.start(
+      {
+        bpm: 120,
+        subdivision: 1,
+        swing: 0,
+        humanizeMs: 0,
+        accentPattern: [1.8, 1, 1, 1],
+        clickVolume: 0.3,
+      },
+      () => {
+        // timing analyzer reference click only
+      },
+    )
+
+    return () => {
+      referenceClickRef.current.stop()
+    }
   }, [tracking])
 
   useEffect(() => {
@@ -383,6 +410,8 @@ export function TimingAnalyzerView() {
       rightAvgAbs,
       leftConsistency,
       rightConsistency,
+      leftSamples: left.length,
+      rightSamples: right.length,
       weakerHand,
       weakerGap,
       recommendation,
@@ -489,13 +518,15 @@ export function TimingAnalyzerView() {
           <p className="text-xs uppercase tracking-wide text-zinc-400">Left Hand Trend</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.leftAvgAbs} ms</p>
           <p className="text-xs text-zinc-400">Avg absolute deviation</p>
-          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.leftConsistency}%</p>
+          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.leftSamples >= 2 ? `${handTrend.leftConsistency}%` : '-'}</p>
+          <p className="text-xs text-zinc-500">Samples: {handTrend.leftSamples}</p>
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Right Hand Trend</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.rightAvgAbs} ms</p>
           <p className="text-xs text-zinc-400">Avg absolute deviation</p>
-          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.rightConsistency}%</p>
+          <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.rightSamples >= 2 ? `${handTrend.rightConsistency}%` : '-'}</p>
+          <p className="text-xs text-zinc-500">Samples: {handTrend.rightSamples}</p>
         </GlassCard>
         <GlassCard>
           <p className="text-xs uppercase tracking-wide text-zinc-400">Drill Prescription</p>
