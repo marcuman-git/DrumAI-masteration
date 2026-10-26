@@ -39,13 +39,30 @@ export function RudimentTrainerView() {
   const [mode, setMode] = useState<'Learn' | 'Practice' | 'Challenge' | 'Mastery'>('Practice')
   const [tempo, setTempo] = useState(60)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [loopPlayback, setLoopPlayback] = useState(false)
   const timerRef = useRef<number | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+  const loopRef = useRef(loopPlayback)
 
   const pattern = useMemo(
     () => stickingExamples[Math.floor(Math.random() * stickingExamples.length)],
     [category, mode],
   )
+  const recommendation = useMemo(
+    () =>
+      mode === 'Learn'
+        ? `Slow control focus: ${rudiments[category][0]} at 50-70 BPM.`
+        : mode === 'Practice'
+          ? `Consistency block: ${rudiments[category][1]} for 6 clean rounds.`
+          : mode === 'Challenge'
+            ? `Accuracy challenge: ${rudiments[category][2]} at +10 BPM from comfort tempo.`
+            : `Mastery pass: rotate all ${category} rudiments with no pause for 10 minutes.`,
+    [category, mode],
+  )
+
+  useEffect(() => {
+    loopRef.current = loopPlayback
+  }, [loopPlayback])
 
   useEffect(() => {
     return () => {
@@ -79,6 +96,10 @@ export function RudimentTrainerView() {
       const token = tokens[step % tokens.length]
       playTick(token === 'R' ? 900 : 650)
       step += 1
+
+      if (!loopRef.current && step >= tokens.length) {
+        handleStop()
+      }
     }, intervalMs)
   }
 
@@ -96,10 +117,7 @@ export function RudimentTrainerView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader
-        title="Rudiment Trainer"
-        subtitle="All PAS categories with learn, practice, challenge, and mastery workflows."
-      />
+      <SectionHeader title="Rudiment Trainer" subtitle="All PAS categories with learn, practice, challenge, and mastery workflows." />
 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
         <GlassCard className="space-y-4">
@@ -129,8 +147,11 @@ export function RudimentTrainerView() {
             <p className="text-xs uppercase tracking-wide text-cyan-100">Animated Sticking Display</p>
             <p className="mt-2 text-3xl font-semibold tracking-[0.35em] text-zinc-50">{pattern}</p>
           </div>
+          <p className="text-sm text-zinc-300">
+            Recommended practice: <span className="text-cyan-200">{recommendation}</span>
+          </p>
 
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,0.72fr)_auto_auto_auto] sm:items-end">
             <label className="text-xs text-zinc-300">
               Tempo {tempo} BPM
               <input
@@ -156,6 +177,17 @@ export function RudimentTrainerView() {
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-60"
             >
               <Square size={12} /> Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoopPlayback((value) => !value)}
+              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                loopPlayback
+                  ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-100'
+                  : 'border-white/10 text-zinc-200'
+              }`}
+            >
+              Loop {loopPlayback ? 'On' : 'Off'}
             </button>
           </div>
         </GlassCard>
