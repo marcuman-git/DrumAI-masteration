@@ -132,7 +132,7 @@ export function StickControlView() {
               onClick={handlePlay}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
             >
-              <Play size={12} /> Play
+              <Play size={12} /> {isPlaying ? 'Playing...' : 'Play'}
             </button>
             <button
               type="button"
