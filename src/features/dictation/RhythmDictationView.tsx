@@ -65,6 +65,7 @@ export function RhythmDictationView() {
   const [selected, setSelected] = useState<string | null>(null)
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null)
   const [tempo, setTempo] = useState(60)
+  const [isPlayingQuestion, setIsPlayingQuestion] = useState(false)
 
   const questions = useMemo(() => {
     if (difficultyFilter === 'All') return questionBank
@@ -82,12 +83,18 @@ export function RhythmDictationView() {
   }
 
   async function playQuestion() {
+    if (isPlayingQuestion) return
+    setIsPlayingQuestion(true)
     void trackPracticeEvent('dictation', 'start', {
       questionId: question.id,
       difficulty: question.difficulty,
       tempo,
     })
-    await playPattern(question.prompt, tempo)
+    try {
+      await playPattern(question.prompt, tempo)
+    } finally {
+      setIsPlayingQuestion(false)
+    }
   }
 
   function submitAnswer() {
@@ -144,9 +151,10 @@ export function RhythmDictationView() {
             <button
               type="button"
               onClick={playQuestion}
+              disabled={isPlayingQuestion}
               className="mt-2 inline-flex items-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
             >
-              <Volume2 size={12} /> Play Rhythm
+              <Volume2 size={12} /> {isPlayingQuestion ? 'Playing...' : 'Play Rhythm'}
             </button>
           </div>
 
