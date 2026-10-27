@@ -30,7 +30,6 @@ const subdivisionLabelByValue: Record<number, string> = {
 const accentOptions = [
   { label: 'No Accent', value: 'none' },
   { label: 'Beat 1 (Default)', value: 'beat1' },
-  { label: 'Beat 1 + 3', value: 'beat1-3' },
 ] as const
 
 type AccentMode = (typeof accentOptions)[number]['value']
@@ -49,18 +48,14 @@ export function MetronomeView() {
   const [randomTempo, setRandomTempo] = useState(false)
   const [increasingTempo, setIncreasingTempo] = useState(false)
   const [accentMode, setAccentMode] = useState<AccentMode>('beat1')
-  const [animationSeed, setAnimationSeed] = useState(0)
-
   const accentPattern = useMemo(() => {
-    switch (accentMode) {
-      case 'none':
-        return [1, 1, 1, 1]
-      case 'beat1-3':
-        return [1.8, 1, 1.8, 1]
-      default:
-        return [1.8, 1, 1, 1]
+    if (accentMode === 'none') {
+      return [1, 1, 1, 1]
     }
-  }, [accentMode])
+
+    const stepsPerBar = Math.max(1, subdivision * 4)
+    return Array.from({ length: stepsPerBar }, (_, index) => (index === 0 ? 1.8 : 1))
+  }, [accentMode, subdivision])
 
   const metronomeConfig = useMemo(
     () => ({
@@ -114,11 +109,6 @@ export function MetronomeView() {
     }, 20000)
     return () => window.clearInterval(interval)
   }, [increasingTempo, isRunning])
-
-  useEffect(() => {
-    if (!isRunning) return
-    setAnimationSeed((value) => value + 1)
-  }, [bpm, subdivision, isRunning])
 
   useEffect(() => {
     return () => {
@@ -347,7 +337,7 @@ export function MetronomeView() {
           <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
-              key={`${isRunning ? 'run' : 'stop'}-${bpm}-${subdivision}-${animationSeed}`}
+              key={isRunning ? 'run' : 'stop'}
               animate={{ rotate: isRunning ? [-28, 28] : 0 }}
               transition={{
                 duration: Math.max(0.12, 60 / (bpm * subdivision)),
