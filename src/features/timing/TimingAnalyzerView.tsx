@@ -8,19 +8,17 @@ import { useAppStore } from '../../core/store/useAppStore'
 import type { TimingHit } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
+import { handForExpectedIndex, timingDrillPatterns, type DrillMode } from './timingAnalyzerLogic'
 
 const CALIBRATION_MS = 1800
 
-const drillPatterns = {
-  'Singles (L/R)': ['L', 'R'],
-  'Singles (R/L)': ['R', 'L'],
-  'Doubles (L/R)': ['L', 'L', 'R', 'R'],
-  'Doubles (R/L)': ['R', 'R', 'L', 'L'],
-  'Paradiddle (L/R)': ['L', 'R', 'L', 'L', 'R', 'L', 'R', 'R'],
-  'Paradiddle (R/L)': ['R', 'L', 'R', 'R', 'L', 'R', 'L', 'L'],
+const micProfiles = {
+  Pad: { threshold: 30, cooldown: 125, note: 'Balanced stick-trigger profile for practice pads.' },
+  Snare: { threshold: 38, cooldown: 145, note: 'Higher rejection for snare ring and overtones.' },
+  'Quiet Room': { threshold: 24, cooldown: 110, note: 'More sensitive for low-volume rooms.' },
 } as const
 
-type DrillMode = keyof typeof drillPatterns
+type MicProfile = keyof typeof micProfiles
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -49,6 +47,7 @@ export function TimingAnalyzerView() {
   const [cooldownMs, setCooldownMs] = useState(120)
   const [drillMode, setDrillMode] = useState<DrillMode>('Singles (L/R)')
   const [referenceBpm, setReferenceBpm] = useState(120)
+  const [micProfile, setMicProfile] = useState<MicProfile>('Pad')
   const [isCalibrating, setIsCalibrating] = useState(false)
   const [calibration, setCalibration] = useState<{ noiseFloor: number; peak: number; calibratedAt: string } | null>(null)
   const [lastInputSource, setLastInputSource] = useState<'mic' | 'midi' | null>(null)
@@ -56,13 +55,21 @@ export function TimingAnalyzerView() {
   const startRef = useRef<number>(0)
   const sessionIdRef = useRef<string | null>(null)
   const lastExpectedIndexRef = useRef<number>(-1)
+  const nextExpectedIndexRef = useRef(0)
   const referenceClickRef = useRef(new MetronomeEngine())
 
   useEffect(() => {
     if (!tracking) return
     startRef.current = performance.now()
     lastExpectedIndexRef.current = -1
+    nextExpectedIndexRef.current = 0
   }, [tracking])
+
+  useEffect(() => {
+    const profile = micProfiles[micProfile]
+    setTriggerThreshold(profile.threshold)
+    setCooldownMs(profile.cooldown)
+  }, [micProfile])
 
   useEffect(() => {
     if (!tracking) {
@@ -256,12 +263,15 @@ export function TimingAnalyzerView() {
     const expectedAt = expectedIndex * intervalMs
     const deviation = elapsed - expectedAt
     const quality = classifyDeviation(deviation)
-    const pattern = drillPatterns[drillMode]
+    const pattern = timingDrillPatterns[drillMode]
+    if (expectedIndex <= lastExpectedIndexRef.current) {
+      return
+    }
 
     if (lastExpectedIndexRef.current >= 0 && expectedIndex - lastExpectedIndexRef.current > 1) {
       for (let missedIndex = lastExpectedIndexRef.current + 1; missedIndex < expectedIndex; missedIndex += 1) {
         const missedExpectedAt = missedIndex * intervalMs
-        const missedHand = pattern[missedIndex % pattern.length]
+        const missedHand = handForExpectedIndex(pattern, missedIndex)
         const missedHit: TimingHit = {
           id: crypto.randomUUID(),
           expectedAt: missedExpectedAt,
@@ -282,7 +292,8 @@ export function TimingAnalyzerView() {
     }
 
     lastExpectedIndexRef.current = expectedIndex
-    const expectedHand = pattern[expectedIndex % pattern.length]
+    nextExpectedIndexRef.current = expectedIndex + 1
+    const expectedHand = handForExpectedIndex(pattern, expectedIndex)
 
     const hit: TimingHit = {
       id: crypto.randomUUID(),
@@ -373,11 +384,10 @@ export function TimingAnalyzerView() {
   const handStats = useMemo(() => {
     const leftDeviations: number[] = []
     const rightDeviations: number[] = []
-    const pattern = drillPatterns[drillMode]
 
-    hits.forEach((hit, index) => {
+    hits.forEach((hit) => {
       if (hit.quality === 'missed') return
-      const hand = pattern[index % pattern.length]
+      const hand = hit.hand
 
       if (hand === 'L') {
         leftDeviations.push(hit.deviationMs)
@@ -398,13 +408,12 @@ export function TimingAnalyzerView() {
   }, [hits, drillMode])
 
   const handTrend = useMemo(() => {
-    const pattern = drillPatterns[drillMode]
     const left: number[] = []
     const right: number[] = []
 
-    hits.forEach((hit, index) => {
+    hits.forEach((hit) => {
       if (hit.quality === 'missed') return
-      const hand = hit.hand ?? pattern[index % pattern.length]
+      const hand = hit.hand ?? 'L'
       if (hand === 'L') left.push(hit.deviationMs)
       else right.push(hit.deviationMs)
     })
@@ -449,8 +458,9 @@ export function TimingAnalyzerView() {
   }, [hits, drillMode])
 
   const expectedSequence = useMemo(() => {
-    const pattern = drillPatterns[drillMode]
-    return Array.from({ length: 8 }, (_, index) => pattern[(hits.length + index) % pattern.length])
+    const pattern = timingDrillPatterns[drillMode]
+    const baseIndex = Math.max(0, nextExpectedIndexRef.current)
+    return Array.from({ length: 8 }, (_, index) => handForExpectedIndex(pattern, baseIndex + index))
   }, [drillMode, hits.length])
 
   function handleDrillModeChange(mode: DrillMode) {
@@ -464,6 +474,7 @@ export function TimingAnalyzerView() {
   function handleClear() {
     clearHits()
     lastExpectedIndexRef.current = -1
+    nextExpectedIndexRef.current = 0
   }
 
   useEffect(() => {
@@ -613,13 +624,29 @@ export function TimingAnalyzerView() {
               onChange={(event) => handleDrillModeChange(event.target.value as DrillMode)}
               className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
             >
-              {(Object.keys(drillPatterns) as DrillMode[]).map((mode) => (
+              {(Object.keys(timingDrillPatterns) as DrillMode[]).map((mode) => (
                 <option key={mode} value={mode}>
                   {mode}
                 </option>
               ))}
             </select>
           </label>
+
+          <label className="block text-xs text-zinc-300">
+            Mic Profile
+            <select
+              value={micProfile}
+              onChange={(event) => setMicProfile(event.target.value as MicProfile)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              {(Object.keys(micProfiles) as MicProfile[]).map((profile) => (
+                <option key={profile} value={profile}>
+                  {profile}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-[11px] text-zinc-500">{micProfiles[micProfile].note}</p>
 
           <div className="rounded-lg border border-white/10 bg-black/20 p-2">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Expected Hand Sequence</p>
