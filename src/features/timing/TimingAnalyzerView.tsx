@@ -14,8 +14,10 @@ const CALIBRATION_MS = 1800
 const drillPatterns = {
   'Singles (L/R)': ['L', 'R'],
   'Singles (R/L)': ['R', 'L'],
-  Doubles: ['L', 'L', 'R', 'R'],
-  Paradiddle: ['L', 'R', 'L', 'L', 'R', 'L', 'R', 'R'],
+  'Doubles (L/R)': ['L', 'L', 'R', 'R'],
+  'Doubles (R/L)': ['R', 'R', 'L', 'L'],
+  'Paradiddle (L/R)': ['L', 'R', 'L', 'L', 'R', 'L', 'R', 'R'],
+  'Paradiddle (R/L)': ['R', 'L', 'R', 'R', 'L', 'R', 'L', 'L'],
 } as const
 
 type DrillMode = keyof typeof drillPatterns
@@ -125,6 +127,8 @@ export function TimingAnalyzerView() {
     let stream: MediaStream | null = null
     let context: AudioContext | null = null
     let lastHitTime = 0
+    let wasArmed = true
+    let previousLevel = 0
 
     async function initMic() {
       try {
@@ -146,10 +150,21 @@ export function TimingAnalyzerView() {
 
           const now = performance.now()
           const cooldownPassed = now - lastHitTime > cooldownMs
-          if (normalized >= triggerThreshold && cooldownPassed) {
+          const releaseThreshold = Math.max(5, Math.round(triggerThreshold * 0.55))
+          const riseAmount = normalized - previousLevel
+          const transientDetected = riseAmount >= 4
+
+          if (normalized <= releaseThreshold) {
+            wasArmed = true
+          }
+
+          if (wasArmed && normalized >= triggerThreshold && cooldownPassed && transientDetected) {
             registerHit(now, 'mic')
             lastHitTime = now
+            wasArmed = false
           }
+
+          previousLevel = normalized
 
           raf = requestAnimationFrame(loop)
         }
@@ -242,12 +257,11 @@ export function TimingAnalyzerView() {
     const deviation = elapsed - expectedAt
     const quality = classifyDeviation(deviation)
     const pattern = drillPatterns[drillMode]
-    let insertedMisses = 0
 
     if (lastExpectedIndexRef.current >= 0 && expectedIndex - lastExpectedIndexRef.current > 1) {
       for (let missedIndex = lastExpectedIndexRef.current + 1; missedIndex < expectedIndex; missedIndex += 1) {
         const missedExpectedAt = missedIndex * intervalMs
-        const missedHand = pattern[(hits.length + insertedMisses) % pattern.length]
+        const missedHand = pattern[missedIndex % pattern.length]
         const missedHit: TimingHit = {
           id: crypto.randomUUID(),
           expectedAt: missedExpectedAt,
@@ -264,12 +278,11 @@ export function TimingAnalyzerView() {
           { deviationMs: missedHit.deviationMs, quality: 'missed', inputSource, hand: missedHand },
           sessionIdRef.current ?? undefined,
         )
-        insertedMisses += 1
       }
     }
 
     lastExpectedIndexRef.current = expectedIndex
-    const expectedHand = pattern[(hits.length + insertedMisses) % pattern.length]
+    const expectedHand = pattern[expectedIndex % pattern.length]
 
     const hit: TimingHit = {
       id: crypto.randomUUID(),
