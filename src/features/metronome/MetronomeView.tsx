@@ -48,6 +48,7 @@ export function MetronomeView() {
   const [randomTempo, setRandomTempo] = useState(false)
   const [increasingTempo, setIncreasingTempo] = useState(false)
   const [accentMode, setAccentMode] = useState<AccentMode>('beat1')
+  const [visualTick, setVisualTick] = useState(0)
   const accentPattern = useMemo(() => {
     if (accentMode === 'none') {
       return [1, 1, 1, 1]
@@ -72,8 +73,9 @@ export function MetronomeView() {
   useEffect(() => {
     if (!isRunning) return
 
-    engineRef.current.start(metronomeConfig, () => {
-      // no-op visual pulse handled by animation timing
+    setVisualTick(0)
+    engineRef.current.start(metronomeConfig, (beat) => {
+      setVisualTick(beat)
     })
 
     return () => {
@@ -183,6 +185,8 @@ export function MetronomeView() {
       return next
     })
   }
+
+  const pendulumTarget = isRunning ? (visualTick % 2 === 0 ? -28 : 28) : 0
 
   return (
     <div className="space-y-4">
@@ -338,12 +342,12 @@ export function MetronomeView() {
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
               key={isRunning ? 'run' : 'stop'}
-              animate={{ rotate: isRunning ? [-28, 28] : 0 }}
+              animate={{ rotate: pendulumTarget }}
               transition={{
-                duration: Math.max(0.12, 60 / (bpm * subdivision)),
-                ease: [0.45, 0, 0.55, 1],
-                repeat: isRunning ? Infinity : 0,
-                repeatType: 'reverse',
+                type: 'spring',
+                stiffness: 180,
+                damping: 18,
+                mass: 0.35,
               }}
               className="absolute left-1/2 top-4 h-48 w-1 origin-bottom -translate-x-1/2 bg-cyan-300"
             >
