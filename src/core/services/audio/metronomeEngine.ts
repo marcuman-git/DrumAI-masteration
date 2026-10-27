@@ -7,6 +7,13 @@ export interface MetronomeConfig {
   clickVolume: number
 }
 
+export function resolveAccentMultiplier(config: Pick<MetronomeConfig, 'accentPattern' | 'subdivision'>, beat: number): number {
+  const hasStepAccents = config.accentPattern.length >= config.subdivision * 4
+  const beatStep = Math.floor(beat / Math.max(1, config.subdivision))
+  const accentIndex = hasStepAccents ? beat % config.accentPattern.length : beatStep % config.accentPattern.length
+  return config.accentPattern[accentIndex] ?? 1
+}
+
 export class MetronomeEngine {
   private context: AudioContext | null = null
   private timer: number | null = null
@@ -62,10 +69,7 @@ export class MetronomeEngine {
     const osc = this.context.createOscillator()
     const gain = this.context.createGain()
 
-    const hasStepAccents = config.accentPattern.length >= config.subdivision * 4
-    const beatStep = Math.floor(beat / Math.max(1, config.subdivision))
-    const accentIndex = hasStepAccents ? beat % config.accentPattern.length : beatStep % config.accentPattern.length
-    const accent = config.accentPattern[accentIndex] ?? 1
+    const accent = resolveAccentMultiplier(config, beat)
     osc.type = accent > 1 ? 'triangle' : 'sine'
     osc.frequency.value = accent > 1 ? 1540 : 980
 
