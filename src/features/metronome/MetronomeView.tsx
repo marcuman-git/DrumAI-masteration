@@ -29,7 +29,7 @@ const subdivisionLabelByValue: Record<number, string> = {
 
 const accentOptions = [
   { label: 'No Accent', value: 'none' },
-  { label: 'Beat 1 (Default)', value: 'beat1' },
+  { label: 'Beat 1', value: 'beat1' },
 ] as const
 
 type AccentMode = (typeof accentOptions)[number]['value']
@@ -89,6 +89,12 @@ export function MetronomeView() {
   }, [isRunning, metronomeConfig])
 
   useEffect(() => {
+    if (subdivision > 2 && accentMode !== 'none') {
+      setAccentMode('none')
+    }
+  }, [subdivision, accentMode])
+
+  useEffect(() => {
     if (!randomTempo || !isRunning) return
     const interval = window.setInterval(() => {
       const randomBpm = Math.floor(Math.random() * 51) + 50
@@ -146,6 +152,10 @@ export function MetronomeView() {
     const clamped = Math.min(7, Math.max(1, nextSubdivision))
     setSubdivision(clamped)
     if (isRunning) {
+      setVisualTick(0)
+      engineRef.current.realignPhase()
+    }
+    if (isRunning) {
       void trackPracticeEvent(
         'metronome',
         'score',
@@ -187,6 +197,7 @@ export function MetronomeView() {
   }
 
   const pendulumTarget = isRunning ? (visualTick % 2 === 0 ? -28 : 28) : 0
+  const allowedAccentOptions = subdivision <= 2 ? accentOptions : accentOptions.filter((option) => option.value === 'none')
 
   return (
     <div className="space-y-4">
@@ -293,9 +304,10 @@ export function MetronomeView() {
             <select
               value={accentMode}
               onChange={(event) => setAccentMode(event.target.value as AccentMode)}
+              disabled={subdivision > 2}
               className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
             >
-              {accentOptions.map((option) => (
+              {allowedAccentOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -344,10 +356,9 @@ export function MetronomeView() {
               key={isRunning ? 'run' : 'stop'}
               animate={{ rotate: pendulumTarget }}
               transition={{
-                type: 'spring',
-                stiffness: 180,
-                damping: 18,
-                mass: 0.35,
+                type: 'tween',
+                ease: 'easeInOut',
+                duration: Math.max(0.08, Math.min(0.3, 30 / (bpm * subdivision))),
               }}
               className="absolute left-1/2 top-4 h-48 w-1 origin-bottom -translate-x-1/2 bg-cyan-300"
             >
