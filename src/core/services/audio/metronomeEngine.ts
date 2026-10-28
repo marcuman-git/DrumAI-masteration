@@ -53,6 +53,12 @@ export class MetronomeEngine {
     this.config = config
   }
 
+  realignPhase(): void {
+    if (!this.context) return
+    this.beatIndex = 0
+    this.nextNoteTime = this.context.currentTime
+  }
+
   stop(): void {
     if (this.timer) {
       window.clearInterval(this.timer)
