@@ -46,7 +46,7 @@ export function TimingAnalyzerView() {
   const [triggerThreshold, setTriggerThreshold] = useState(28)
   const [cooldownMs, setCooldownMs] = useState(120)
   const [drillMode, setDrillMode] = useState<DrillMode>('Singles (L/R)')
-  const [referenceBpm, setReferenceBpm] = useState(120)
+  const [referenceBpm, setReferenceBpm] = useState(60)
   const [micProfile, setMicProfile] = useState<MicProfile>('Pad')
   const [isCalibrating, setIsCalibrating] = useState(false)
   const [calibration, setCalibration] = useState<{ noiseFloor: number; peak: number; calibratedAt: string } | null>(null)
@@ -134,6 +134,7 @@ export function TimingAnalyzerView() {
     let stream: MediaStream | null = null
     let context: AudioContext | null = null
     let lastHitTime = 0
+    let lastRegisteredAt = 0
     let wasArmed = true
     let previousLevel = 0
 
@@ -156,7 +157,8 @@ export function TimingAnalyzerView() {
           setMicLevel(normalized)
 
           const now = performance.now()
-          const cooldownPassed = now - lastHitTime > cooldownMs
+          const minInterHitMs = Math.max(cooldownMs, Math.round((60000 / referenceBpm) * 0.35))
+          const cooldownPassed = now - lastHitTime > minInterHitMs
           const releaseThreshold = Math.max(5, Math.round(triggerThreshold * 0.55))
           const riseAmount = normalized - previousLevel
           const transientDetected = riseAmount >= 4
@@ -165,9 +167,11 @@ export function TimingAnalyzerView() {
             wasArmed = true
           }
 
-          if (wasArmed && normalized >= triggerThreshold && cooldownPassed && transientDetected) {
+          const hardDuplicateGuard = now - lastRegisteredAt > minInterHitMs
+          if (wasArmed && normalized >= triggerThreshold && cooldownPassed && transientDetected && hardDuplicateGuard) {
             registerHit(now, 'mic')
             lastHitTime = now
+            lastRegisteredAt = now
             wasArmed = false
           }
 
@@ -190,7 +194,7 @@ export function TimingAnalyzerView() {
       void context?.close()
       setMicLevel(0)
     }
-  }, [tracking, setMicLevel, triggerThreshold, cooldownMs])
+  }, [tracking, setMicLevel, triggerThreshold, cooldownMs, referenceBpm])
 
   async function calibrateInput() {
     if (isCalibrating || tracking) return
@@ -259,7 +263,8 @@ export function TimingAnalyzerView() {
   function registerHit(actualAt: number, inputSource: 'mic' | 'midi') {
     const intervalMs = 60000 / referenceBpm
     const elapsed = actualAt - startRef.current
-    const expectedIndex = Math.round(elapsed / intervalMs)
+    const quantizedIndex = Math.round(elapsed / intervalMs)
+    const expectedIndex = Math.max(nextExpectedIndexRef.current, quantizedIndex)
     const expectedAt = expectedIndex * intervalMs
     const deviation = elapsed - expectedAt
     const quality = classifyDeviation(deviation)
@@ -405,7 +410,7 @@ export function TimingAnalyzerView() {
       leftAvg: avg(leftDeviations),
       rightAvg: avg(rightDeviations),
     }
-  }, [hits, drillMode])
+  }, [hits])
 
   const handTrend = useMemo(() => {
     const left: number[] = []
@@ -455,7 +460,7 @@ export function TimingAnalyzerView() {
       weakerGap,
       recommendation,
     }
-  }, [hits, drillMode])
+  }, [hits])
 
   const expectedSequence = useMemo(() => {
     const pattern = timingDrillPatterns[drillMode]
