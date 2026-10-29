@@ -271,7 +271,7 @@ export function AICoachView() {
         <SectionHeader title="Personal Progression Planner" subtitle="Unlocks after baseline (7 days + 180 min)." />
         {personalProgress.baselineReady ? (
           <>
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-5">
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
                 <p className="text-xs uppercase tracking-wide text-zinc-400">Quality</p>
                 <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.qualityScore}%</p>
@@ -288,7 +288,15 @@ export function AICoachView() {
                 <p className="text-xs uppercase tracking-wide text-zinc-400">Closure</p>
                 <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.completionRatio}%</p>
               </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Confidence</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.confidenceScore}%</p>
+              </div>
             </div>
+            <p className={`text-sm ${personalProgress.anomalyDetected ? 'text-amber-200' : 'text-zinc-300'}`}>{personalProgress.anomalyReason}</p>
+            <p className="text-sm text-zinc-300">
+              Best-condition insight: <span className="text-cyan-200">{personalProgress.bestCondition}</span>
+            </p>
             <p className="text-sm text-zinc-300">
               Next milestone: <span className="text-cyan-200">{personalProgress.nextMilestone}</span>
             </p>
