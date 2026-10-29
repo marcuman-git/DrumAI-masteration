@@ -1,5 +1,5 @@
 import type { PracticeEvent, TrainingModuleId } from '../../types/drumming'
-import { appendPracticeEvents, listPracticeEvents, replacePracticeEvents } from '../storage/practiceEvents'
+import { appendPracticeEvents, listPracticeEvents, MAX_ANALYTICS_EVENTS, replacePracticeEvents } from '../storage/practiceEvents'
 
 const TEST_TAG = 'v049-baseline-boost'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -29,7 +29,7 @@ function event(
 }
 
 export async function injectBaselineBoost(days = 4): Promise<void> {
-  const all = await listPracticeEvents(5000)
+  const all = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
   const existingBoostDays = new Set(
     all
       .filter((item) => item.payload?.testTag === TEST_TAG)
@@ -89,7 +89,7 @@ export async function injectBaselineBoost(days = 4): Promise<void> {
 }
 
 export async function clearBaselineBoost(): Promise<void> {
-  const all = await listPracticeEvents(5000)
+  const all = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
   const filtered = all.filter((item) => item.payload?.testTag !== TEST_TAG)
   await replacePracticeEvents(filtered)
 }
