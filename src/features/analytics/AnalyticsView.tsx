@@ -175,9 +175,17 @@ export function AnalyticsView() {
                 <p className="text-xs uppercase tracking-wide text-zinc-400">Momentum</p>
                 <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.momentumScore}%</p>
               </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Confidence</p>
+                <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.confidenceScore}%</p>
+              </div>
             </div>
             <p className="text-sm text-zinc-300">
               Completion discipline: <span className="text-cyan-200">{progress.completionRatio}%</span> start-to-stop closure.
+            </p>
+            <p className={`text-sm ${progress.anomalyDetected ? 'text-amber-200' : 'text-zinc-300'}`}>{progress.anomalyReason}</p>
+            <p className="text-sm text-zinc-300">
+              Best-condition insight: <span className="text-cyan-200">{progress.bestCondition}</span>
             </p>
             <p className="text-sm text-zinc-300">
               Next milestone: <span className="text-cyan-200">{progress.nextMilestone}</span>
