@@ -29,7 +29,24 @@ export function AICoachView() {
   const [adaptivePlan, setAdaptivePlan] = useState<AdaptivePlanState | null>(null)
 
   useEffect(() => {
-    void listPracticeEvents(400).then(setRecentEvents)
+    let mounted = true
+
+    const refresh = async () => {
+      const next = await listPracticeEvents(5000)
+      if (!mounted) return
+      setRecentEvents(next)
+    }
+
+    void refresh()
+    const interval = window.setInterval(() => void refresh(), 5000)
+    const onFocus = () => void refresh()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      mounted = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [hits.length, insights.length, micLevel])
   useEffect(() => {
     void loadUserProfile().then(setProfile)
