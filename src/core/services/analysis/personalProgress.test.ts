@@ -8,6 +8,8 @@ describe('buildPersonalProgressSnapshot', () => {
     expect(snapshot.baselineReady).toBe(false)
     expect(snapshot.qualityScore).toBeGreaterThanOrEqual(0)
     expect(snapshot.cadenceScore).toBe(0)
+    expect(snapshot.confidenceScore).toBe(0)
+    expect(snapshot.anomalyDetected).toBe(false)
     expect(snapshot.activeDaysLast7).toBe(0)
   })
 
@@ -39,5 +41,6 @@ describe('buildPersonalProgressSnapshot', () => {
     expect(snapshot.baselineReady).toBe(false)
     expect(snapshot.activeDaysLast7).toBeGreaterThan(0)
     expect(snapshot.completionRatio).toBe(100)
+    expect(snapshot.bestCondition.length).toBeGreaterThan(0)
   })
 })

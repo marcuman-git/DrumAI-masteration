@@ -11,6 +11,10 @@ export interface PersonalProgressSnapshot {
   cadenceScore: number
   focusScore: number
   momentumScore: number
+  confidenceScore: number
+  anomalyDetected: boolean
+  anomalyReason: string
+  bestCondition: string
   completionRatio: number
   activeDaysLast7: number
   nextMilestone: string
@@ -30,6 +34,14 @@ function dateKey(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0')
   const day = `${date.getDate()}`.padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function timeBucket(date: Date): 'Morning' | 'Afternoon' | 'Evening' | 'Night' {
+  const hour = date.getHours()
+  if (hour >= 5 && hour < 12) return 'Morning'
+  if (hour >= 12 && hour < 17) return 'Afternoon'
+  if (hour >= 17 && hour < 22) return 'Evening'
+  return 'Night'
 }
 
 export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new Date()): PersonalProgressSnapshot {
@@ -60,6 +72,45 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
     0,
     100,
   )
+  const confidenceScore = clamp(
+    Math.round((Math.min(metrics.practiceMinutes, 360) / 360) * 60 + (Math.min(activeDaysLast7, 7) / 7) * 40),
+    0,
+    100,
+  )
+
+  const weeklyAccuracies = metrics.weeklyTrend.map((item) => item.accuracy)
+  const recent = weeklyAccuracies.at(-1) ?? 0
+  const baselineSlice = weeklyAccuracies.slice(-4, -1)
+  const baselineAvg = baselineSlice.length
+    ? baselineSlice.reduce((acc, value) => acc + value, 0) / baselineSlice.length
+    : recent
+  const anomalyDetected = baselineSlice.length >= 2 && recent + 15 < baselineAvg
+  const anomalyReason = anomalyDetected
+    ? `Recent accuracy dropped by ${Math.round(baselineAvg - recent)} points vs 3-day baseline. Schedule a lighter recovery block today.`
+    : 'No major anomaly detected in the last training window.'
+
+  const bucketStats = new Map<string, { total: number; perfect: number }>()
+  for (const event of events) {
+    if (event.moduleId !== 'timing-analyzer' || event.type !== 'hit') continue
+    const bucket = timeBucket(new Date(event.timestamp))
+    const stat = bucketStats.get(bucket) ?? { total: 0, perfect: 0 }
+    stat.total += 1
+    if (event.payload?.quality === 'perfect') stat.perfect += 1
+    bucketStats.set(bucket, stat)
+  }
+
+  let bestCondition = 'Not enough timing-hit data to infer best practice window yet.'
+  if (bucketStats.size) {
+    const ranked = Array.from(bucketStats.entries())
+      .map(([bucket, stat]) => ({
+        bucket,
+        accuracy: stat.total ? Math.round((stat.perfect / stat.total) * 100) : 0,
+        samples: stat.total,
+      }))
+      .sort((a, b) => b.accuracy - a.accuracy || b.samples - a.samples)
+    const top = ranked[0]
+    bestCondition = `${top.bucket} sessions currently lead (${top.accuracy}% perfect timing over ${top.samples} hits).`
+  }
 
   const nextMilestone =
     metrics.timingAccuracy < 90
@@ -85,6 +136,10 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
     cadenceScore,
     focusScore,
     momentumScore,
+    confidenceScore,
+    anomalyDetected,
+    anomalyReason,
+    bestCondition,
     completionRatio: clamp(completionRatio, 0, 100),
     activeDaysLast7,
     nextMilestone,
