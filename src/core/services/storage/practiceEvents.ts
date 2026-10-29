@@ -3,7 +3,8 @@ import type { PracticeEvent, PracticeEventType, TrainingModuleId } from '../../t
 
 const EVENTS_KEY = 'drummaster-ai-practice-events-v1'
 const EVENTS_FALLBACK_KEY = 'drummaster-ai-practice-events-fallback-v1'
-const MAX_EVENTS = 5000
+export const MAX_STORED_EVENTS = 50000
+export const MAX_ANALYTICS_EVENTS = 50000
 
 type EventPayload = Record<string, number | string | boolean | null>
 
@@ -73,7 +74,7 @@ export function trackPracticeEvent(
 
   return enqueueWrite(async () => {
     const current = await readEvents()
-    const next = sortByTimestamp([...current, event]).slice(-MAX_EVENTS)
+    const next = sortByTimestamp([...current, event]).slice(-MAX_STORED_EVENTS)
     await writeEvents(next)
   })
 }
@@ -88,13 +89,13 @@ export async function clearPracticeEvents(): Promise<void> {
 }
 
 export async function replacePracticeEvents(events: PracticeEvent[]): Promise<void> {
-  await writeEvents(sortByTimestamp(events).slice(-MAX_EVENTS))
+  await writeEvents(sortByTimestamp(events).slice(-MAX_STORED_EVENTS))
 }
 
 export function appendPracticeEvents(events: PracticeEvent[]): Promise<void> {
   return enqueueWrite(async () => {
     const current = await readEvents()
-    const next = sortByTimestamp([...current, ...events]).slice(-MAX_EVENTS)
+    const next = sortByTimestamp([...current, ...events]).slice(-MAX_STORED_EVENTS)
     await writeEvents(next)
   })
 }
