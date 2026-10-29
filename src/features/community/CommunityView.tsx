@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { buildChallengesSnapshot } from '../../core/services/analysis/challenges'
-import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { listPracticeEvents, MAX_ANALYTICS_EVENTS } from '../../core/services/storage/practiceEvents'
 import {
   buildCommunityLeaderboard,
   getCommunityFoundation,
@@ -22,7 +22,7 @@ export function CommunityView() {
   useEffect(() => {
     let mounted = true
     const refresh = async () => {
-      const next = await listPracticeEvents(5000)
+      const next = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
       if (!mounted) return
       setEvents(next)
     }
