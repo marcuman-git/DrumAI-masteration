@@ -6,7 +6,7 @@ import { buildCoachReport } from '../../core/services/analysis/coachEngine'
 import { buildGamificationSnapshot } from '../../core/services/analysis/gamification'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
 import { loadAdaptivePlan, saveAdaptivePlan } from '../../core/services/storage/adaptivePlan'
-import { listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { listPracticeEvents, MAX_ANALYTICS_EVENTS } from '../../core/services/storage/practiceEvents'
 import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
 import type { PracticeEvent, UserProfile } from '../../core/types/drumming'
@@ -27,7 +27,7 @@ export function DashboardView() {
     let mounted = true
 
     const refresh = async () => {
-      const next = await listPracticeEvents(5000)
+      const next = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
       if (!mounted) return
       setEvents(next)
     }
