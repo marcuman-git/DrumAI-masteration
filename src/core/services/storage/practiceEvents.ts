@@ -42,6 +42,10 @@ function enqueueWrite(task: () => Promise<void>): Promise<void> {
   return writeQueue
 }
 
+function sortByTimestamp(events: PracticeEvent[]): PracticeEvent[] {
+  return [...events].sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp))
+}
+
 export function startPracticeSession(moduleId: TrainingModuleId, payload?: EventPayload): string {
   const sessionId = crypto.randomUUID()
   void trackPracticeEvent(moduleId, 'start', payload, sessionId)
@@ -69,7 +73,7 @@ export function trackPracticeEvent(
 
   return enqueueWrite(async () => {
     const current = await readEvents()
-    const next = [...current, event].slice(-MAX_EVENTS)
+    const next = sortByTimestamp([...current, event]).slice(-MAX_EVENTS)
     await writeEvents(next)
   })
 }
@@ -84,13 +88,13 @@ export async function clearPracticeEvents(): Promise<void> {
 }
 
 export async function replacePracticeEvents(events: PracticeEvent[]): Promise<void> {
-  await writeEvents(events.slice(-MAX_EVENTS))
+  await writeEvents(sortByTimestamp(events).slice(-MAX_EVENTS))
 }
 
 export function appendPracticeEvents(events: PracticeEvent[]): Promise<void> {
   return enqueueWrite(async () => {
     const current = await readEvents()
-    const next = [...current, ...events].slice(-MAX_EVENTS)
+    const next = sortByTimestamp([...current, ...events]).slice(-MAX_EVENTS)
     await writeEvents(next)
   })
 }
