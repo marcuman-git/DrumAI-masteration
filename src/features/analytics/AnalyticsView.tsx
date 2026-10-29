@@ -12,7 +12,7 @@ import {
 import { buildPersonalProgressSnapshot } from '../../core/services/analysis/personalProgress'
 import { clearBaselineBoost, injectBaselineBoost } from '../../core/services/analysis/progressionTestTools'
 import { buildPracticeMetrics } from '../../core/services/analysis/practiceMetrics'
-import { clearPracticeEvents, listPracticeEvents } from '../../core/services/storage/practiceEvents'
+import { clearPracticeEvents, listPracticeEvents, MAX_ANALYTICS_EVENTS } from '../../core/services/storage/practiceEvents'
 import { useAppStore } from '../../core/store/useAppStore'
 import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
@@ -26,7 +26,7 @@ export function AnalyticsView() {
     let mounted = true
 
     const refresh = async () => {
-      const next = await listPracticeEvents(5000)
+      const next = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
       if (!mounted) return
       setEvents(next)
     }
@@ -54,13 +54,13 @@ export function AnalyticsView() {
 
   async function handleFastForwardTest() {
     await injectBaselineBoost(4)
-    const next = await listPracticeEvents(5000)
+    const next = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
     setEvents(next)
   }
 
   async function handleClearFastForwardTest() {
     await clearBaselineBoost()
-    const next = await listPracticeEvents(5000)
+    const next = await listPracticeEvents(MAX_ANALYTICS_EVENTS)
     setEvents(next)
   }
 
