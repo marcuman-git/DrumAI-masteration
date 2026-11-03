@@ -290,11 +290,11 @@ export function AICoachView() {
           <>
             <div className="grid gap-3 md:grid-cols-5">
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Quality</p>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Quality Score</p>
                 <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.qualityScore}%</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence</p>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence Score</p>
                 <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.cadenceScore}%</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
@@ -308,6 +308,16 @@ export function AICoachView() {
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
                 <p className="text-xs uppercase tracking-wide text-zinc-400">Confidence</p>
                 <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.confidenceScore}%</p>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Trend</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.trendDirection}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Recommended Mode</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{personalProgress.recommendedMode}</p>
               </div>
             </div>
             <p className={`text-sm ${personalProgress.anomalyDetected ? 'text-amber-200' : 'text-zinc-300'}`}>{personalProgress.anomalyReason}</p>
