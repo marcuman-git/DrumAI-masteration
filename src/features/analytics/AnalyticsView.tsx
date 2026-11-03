@@ -163,7 +163,7 @@ export function AnalyticsView() {
                 <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.qualityScore}%</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence (7d)</p>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Cadence Score (7d)</p>
                 <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.cadenceScore}%</p>
                 <p className="text-xs text-zinc-500">{progress.activeDaysLast7}/7 active days</p>
               </div>
@@ -178,6 +178,16 @@ export function AnalyticsView() {
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
                 <p className="text-xs uppercase tracking-wide text-zinc-400">Confidence</p>
                 <p className="mt-1 text-2xl font-semibold text-zinc-100">{progress.confidenceScore}%</p>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Trend</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{progress.trendDirection}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Recommended Mode</p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{progress.recommendedMode}</p>
               </div>
             </div>
             <p className="text-sm text-zinc-300">
