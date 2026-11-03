@@ -49,6 +49,7 @@ export function MetronomeView() {
   const [increasingTempo, setIncreasingTempo] = useState(false)
   const [accentMode, setAccentMode] = useState<AccentMode>('beat1')
   const [visualTick, setVisualTick] = useState(0)
+  const [downbeatFlash, setDownbeatFlash] = useState(false)
   const accentPattern = useMemo(() => {
     if (accentMode === 'none') {
       return [1, 1, 1, 1]
@@ -82,6 +83,16 @@ export function MetronomeView() {
       engineRef.current.stop()
     }
   }, [isRunning])
+
+  useEffect(() => {
+    if (!isRunning) return
+    const stepsPerBar = Math.max(1, subdivision * 4)
+    const barStep = ((visualTick % stepsPerBar) + stepsPerBar) % stepsPerBar
+    if (barStep !== 0) return
+    setDownbeatFlash(true)
+    const timeout = window.setTimeout(() => setDownbeatFlash(false), 120)
+    return () => window.clearTimeout(timeout)
+  }, [visualTick, isRunning, subdivision])
 
   useEffect(() => {
     if (!isRunning) return
@@ -198,6 +209,9 @@ export function MetronomeView() {
 
   const pendulumTarget = isRunning ? (visualTick % 2 === 0 ? -28 : 28) : 0
   const allowedAccentOptions = subdivision <= 2 ? accentOptions : accentOptions.filter((option) => option.value === 'none')
+  const stepsPerBar = Math.max(1, subdivision * 4)
+  const barStep = ((visualTick % stepsPerBar) + stepsPerBar) % stepsPerBar
+  const beatInBar = Math.floor(barStep / subdivision) + 1
 
   return (
     <div className="space-y-4">
@@ -350,7 +364,11 @@ export function MetronomeView() {
 
         <GlassCard className="flex flex-col items-center justify-center gap-3">
           <p className="text-xs uppercase tracking-wide text-zinc-400">Visual Metronome</p>
-          <div className="relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60">
+          <div
+            className={`relative h-64 w-44 rounded-t-full border border-white/10 bg-zinc-950/60 transition ${
+              downbeatFlash ? 'shadow-[0_0_0_2px_rgba(34,211,238,0.35)]' : ''
+            }`}
+          >
             <div className="absolute left-1/2 top-4 h-48 w-1 -translate-x-1/2 bg-white/10" />
             <motion.div
               key={isRunning ? 'run' : 'stop'}
@@ -365,6 +383,20 @@ export function MetronomeView() {
               <span className="absolute -left-1.5 top-0 h-4 w-4 rounded-full bg-cyan-200" />
             </motion.div>
             <div className="absolute bottom-4 left-1/2 h-7 w-16 -translate-x-1/2 rounded-lg border border-white/10 bg-black/50" />
+            {downbeatFlash ? <div className="absolute inset-0 rounded-t-full bg-cyan-300/10" /> : null}
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-center text-xs text-zinc-200">
+            Beat <span className="font-semibold text-cyan-200">{beatInBar}</span> / 4
+          </div>
+          <div className="flex gap-1">
+            {Array.from({ length: 4 }, (_, index) => (
+              <span
+                key={`beat-indicator-${index + 1}`}
+                className={`h-2.5 w-2.5 rounded-full ${
+                  index + 1 === beatInBar ? 'bg-cyan-300' : 'bg-zinc-600'
+                }`}
+              />
+            ))}
           </div>
           <div className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-center text-sm text-cyan-100">
             <p className="text-xs text-zinc-300">Subdivision</p>
