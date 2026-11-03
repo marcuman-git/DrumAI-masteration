@@ -51,6 +51,7 @@ export function TimingAnalyzerView() {
   const [isCalibrating, setIsCalibrating] = useState(false)
   const [calibration, setCalibration] = useState<{ noiseFloor: number; peak: number; calibratedAt: string } | null>(null)
   const [lastInputSource, setLastInputSource] = useState<'mic' | 'midi' | null>(null)
+  const [peakFilterEnabled, setPeakFilterEnabled] = useState(true)
 
   const startRef = useRef<number>(0)
   const sessionIdRef = useRef<string | null>(null)
@@ -137,6 +138,8 @@ export function TimingAnalyzerView() {
     let lastRegisteredAt = 0
     let wasArmed = true
     let previousLevel = 0
+    let candidatePeakLevel = 0
+    let candidatePeakTime = 0
 
     async function initMic() {
       try {
@@ -157,22 +160,44 @@ export function TimingAnalyzerView() {
           setMicLevel(normalized)
 
           const now = performance.now()
-          const minInterHitMs = Math.max(cooldownMs, Math.round((60000 / referenceBpm) * 0.35))
+          const minInterHitMs = Math.max(cooldownMs, Math.round((60000 / referenceBpm) * 0.5))
           const cooldownPassed = now - lastHitTime > minInterHitMs
           const releaseThreshold = Math.max(5, Math.round(triggerThreshold * 0.55))
           const riseAmount = normalized - previousLevel
-          const transientDetected = riseAmount >= 4
+          const fallAmount = previousLevel - normalized
+          const fallbackTransient = riseAmount >= 2
+
+          if (normalized > candidatePeakLevel) {
+            candidatePeakLevel = normalized
+            candidatePeakTime = now
+          }
 
           if (normalized <= releaseThreshold) {
             wasArmed = true
+            candidatePeakLevel = 0
+            candidatePeakTime = 0
           }
 
           const hardDuplicateGuard = now - lastRegisteredAt > minInterHitMs
-          if (wasArmed && normalized >= triggerThreshold && cooldownPassed && transientDetected && hardDuplicateGuard) {
+          const peakWindowOk = now - candidatePeakTime <= 90
+          const decayDetected = fallAmount >= 3
+          const peakValidated =
+            !peakFilterEnabled ||
+            (candidatePeakLevel >= triggerThreshold && peakWindowOk && decayDetected)
+
+          const shouldFireHit =
+            wasArmed &&
+            hardDuplicateGuard &&
+            cooldownPassed &&
+            (peakValidated || (normalized >= triggerThreshold && fallbackTransient))
+
+          if (shouldFireHit) {
             registerHit(now, 'mic')
             lastHitTime = now
             lastRegisteredAt = now
             wasArmed = false
+            candidatePeakLevel = 0
+            candidatePeakTime = 0
           }
 
           previousLevel = normalized
@@ -194,7 +219,7 @@ export function TimingAnalyzerView() {
       void context?.close()
       setMicLevel(0)
     }
-  }, [tracking, setMicLevel, triggerThreshold, cooldownMs, referenceBpm])
+  }, [tracking, setMicLevel, triggerThreshold, cooldownMs, referenceBpm, peakFilterEnabled])
 
   async function calibrateInput() {
     if (isCalibrating || tracking) return
@@ -439,6 +464,13 @@ export function TimingAnalyzerView() {
     const rightAvgAbs = avgAbs(right)
     const leftConsistency = consistencyFor(left)
     const rightConsistency = consistencyFor(right)
+    const confidenceFor = (values: number[], localConsistency: number) => {
+      if (!values.length) return 0
+      const sampleConfidence = Math.min(100, Math.round((values.length / 24) * 100))
+      return Math.round(sampleConfidence * 0.45 + localConsistency * 0.55)
+    }
+    const leftConfidence = confidenceFor(left, leftConsistency)
+    const rightConfidence = confidenceFor(right, rightConsistency)
     const weakerHand = leftAvgAbs >= rightAvgAbs ? 'Left' : 'Right'
     const weakerGap = Math.abs(leftAvgAbs - rightAvgAbs)
 
@@ -454,6 +486,8 @@ export function TimingAnalyzerView() {
       rightAvgAbs,
       leftConsistency,
       rightConsistency,
+      leftConfidence,
+      rightConfidence,
       leftSamples: left.length,
       rightSamples: right.length,
       weakerHand,
@@ -565,6 +599,7 @@ export function TimingAnalyzerView() {
           <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.leftAvgAbs} ms</p>
           <p className="text-xs text-zinc-400">Avg absolute deviation</p>
           <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.leftSamples >= 2 ? `${handTrend.leftConsistency}%` : '-'}</p>
+          <p className="text-xs text-zinc-400">Confidence: {handTrend.leftSamples ? `${handTrend.leftConfidence}%` : '-'}</p>
           <p className="text-xs text-zinc-500">Samples: {handTrend.leftSamples}</p>
         </GlassCard>
         <GlassCard>
@@ -572,6 +607,7 @@ export function TimingAnalyzerView() {
           <p className="mt-2 text-2xl font-semibold text-zinc-100">{handTrend.rightAvgAbs} ms</p>
           <p className="text-xs text-zinc-400">Avg absolute deviation</p>
           <p className="mt-1 text-sm text-zinc-300">Consistency: {handTrend.rightSamples >= 2 ? `${handTrend.rightConsistency}%` : '-'}</p>
+          <p className="text-xs text-zinc-400">Confidence: {handTrend.rightSamples ? `${handTrend.rightConfidence}%` : '-'}</p>
           <p className="text-xs text-zinc-500">Samples: {handTrend.rightSamples}</p>
         </GlassCard>
         <GlassCard>
@@ -707,6 +743,15 @@ export function TimingAnalyzerView() {
               onChange={(event) => setCooldownMs(Number(event.target.value))}
               className="mt-2 w-full accent-violet-400"
             />
+          </label>
+          <label className="flex items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={peakFilterEnabled}
+              onChange={(event) => setPeakFilterEnabled(event.target.checked)}
+              className="accent-cyan-400"
+            />
+            Peak-Shape Filter (reject rebounds/voice-like transients)
           </label>
           <p className="text-[11px] text-zinc-400">
             Cooldown is the minimum gap between detected hits; higher values reduce double-triggering.
