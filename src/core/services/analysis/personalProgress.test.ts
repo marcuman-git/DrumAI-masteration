@@ -10,6 +10,7 @@ describe('buildPersonalProgressSnapshot', () => {
     expect(snapshot.cadenceScore).toBe(0)
     expect(snapshot.confidenceScore).toBe(0)
     expect(snapshot.anomalyDetected).toBe(false)
+    expect(snapshot.recommendedMode).toBe('Stabilize')
     expect(snapshot.activeDaysLast7).toBe(0)
   })
 
@@ -42,5 +43,7 @@ describe('buildPersonalProgressSnapshot', () => {
     expect(snapshot.activeDaysLast7).toBeGreaterThan(0)
     expect(snapshot.completionRatio).toBe(100)
     expect(snapshot.bestCondition.length).toBeGreaterThan(0)
+    expect(['Build', 'Stabilize', 'Recover']).toContain(snapshot.recommendedMode)
+    expect(['Rising', 'Stable', 'Falling']).toContain(snapshot.trendDirection)
   })
 })

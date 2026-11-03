@@ -12,6 +12,8 @@ export interface PersonalProgressSnapshot {
   focusScore: number
   momentumScore: number
   confidenceScore: number
+  trendDirection: 'Rising' | 'Stable' | 'Falling'
+  recommendedMode: 'Build' | 'Stabilize' | 'Recover'
   anomalyDetected: boolean
   anomalyReason: string
   bestCondition: string
@@ -88,6 +90,14 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
   const anomalyReason = anomalyDetected
     ? `Recent accuracy dropped by ${Math.round(baselineAvg - recent)} points vs 3-day baseline. Schedule a lighter recovery block today.`
     : 'No major anomaly detected in the last training window.'
+  const trendDelta = recent - baselineAvg
+  const trendDirection: PersonalProgressSnapshot['trendDirection'] =
+    trendDelta >= 6 ? 'Rising' : trendDelta <= -6 ? 'Falling' : 'Stable'
+  const recommendedMode: PersonalProgressSnapshot['recommendedMode'] = anomalyDetected
+    ? 'Recover'
+    : trendDirection === 'Rising'
+      ? 'Build'
+      : 'Stabilize'
 
   const bucketStats = new Map<string, { total: number; perfect: number }>()
   for (const event of events) {
@@ -137,6 +147,8 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
     focusScore,
     momentumScore,
     confidenceScore,
+    trendDirection,
+    recommendedMode,
     anomalyDetected,
     anomalyReason,
     bestCondition,
