@@ -120,7 +120,7 @@ export function AICoachView() {
             onClick={() => void handleFastForwardTest()}
             className="rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
           >
-            Fast-Forward +4 Days (Test)
+            Fast-Forward +4 Days + Today (Test)
           </button>
           <button
             type="button"
