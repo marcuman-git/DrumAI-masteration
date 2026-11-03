@@ -13,7 +13,45 @@ const rudiments = {
   Ratamacues: ['Single Ratamacue', 'Double Ratamacue', 'Triple Ratamacue'],
 }
 
-const stickingExamples = ['R L R R L R L L', 'R L R L R R L L', 'R R L R L L R L']
+const modePhraseMap: Record<
+  'Learn' | 'Practice' | 'Challenge' | 'Mastery',
+  Record<keyof typeof rudiments, string[]>
+> = {
+  Learn: {
+    Singles: ['R L R L R L R L', 'R R L L R R L L'],
+    Doubles: ['R R L L R R L L', 'R R R R L L L L'],
+    Paradiddles: ['R L R R L R L L', 'L R L L R L R R'],
+    Flams: ['R l L r R l L r', 'R l R l L r L r'],
+    Drags: ['rR L rR L rR L rR L', 'lL R lL R lL R lL R'],
+    Ratamacues: ['R r l R L r l L', 'L l r L R l r R'],
+  },
+  Practice: {
+    Singles: ['R L R L R R L L', 'R R L R L L R L'],
+    Doubles: ['R R L L R L R L', 'R R L L R R L L'],
+    Paradiddles: ['R L R R L R L L', 'R L R L L R L L'],
+    Flams: ['R l L r R l R l', 'L r R l L r L r'],
+    Drags: ['rR rR L lL lL R', 'lL lL R rR rR L'],
+    Ratamacues: ['R r l R R l r L', 'L l r L L r l R'],
+  },
+  Challenge: {
+    Singles: ['R L R L R L L R', 'R R L R L R R L'],
+    Doubles: ['R R L L R R L R', 'L L R R L L R L'],
+    Paradiddles: ['R L R R L L R L', 'L R L L R R L R'],
+    Flams: ['R l L r R l L r R l', 'L r R l L r R l L r'],
+    Drags: ['rR L rR rR L rR L', 'lL R lL lL R lL R'],
+    Ratamacues: ['R r l R R r l L', 'L l r L L l r R'],
+  },
+  Mastery: {
+    Singles: ['R L R L R L R L R L R L', 'R R L L R R L L R L R L'],
+    Doubles: ['R R L L R R L L R R L L', 'R R R R L L L L R R L L'],
+    Paradiddles: ['R L R R L R L L R L R R', 'L R L L R L R R L R L L'],
+    Flams: ['R l L r R l L r R l L r', 'L r R l L r R l L r R l'],
+    Drags: ['rR L rR L rR L rR L rR L', 'lL R lL R lL R lL R lL R'],
+    Ratamacues: ['R r l R L r l L R r l R', 'L l r L R l r R L l r L'],
+  },
+}
+
+type RandomMode = 'Phrase Only' | 'Category + Phrase' | 'Full Shuffle'
 
 export function RudimentTrainerView() {
   const [category, setCategory] = useState<keyof typeof rudiments>('Paradiddles')
@@ -21,6 +59,7 @@ export function RudimentTrainerView() {
   const [tempo, setTempo] = useState(60)
   const [isPlaying, setIsPlaying] = useState(false)
   const [loopPlayback, setLoopPlayback] = useState(false)
+  const [randomMode, setRandomMode] = useState<RandomMode>('Full Shuffle')
   const [patternNonce, setPatternNonce] = useState(0)
   const [activeTokenIndex, setActiveTokenIndex] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
@@ -31,7 +70,8 @@ export function RudimentTrainerView() {
   const tempoRef = useRef(tempo)
   const tokensRef = useRef<string[]>([])
 
-  const pattern = useMemo(() => stickingExamples[patternNonce % stickingExamples.length], [patternNonce])
+  const phrasePool = useMemo(() => modePhraseMap[mode][category], [mode, category])
+  const pattern = useMemo(() => phrasePool[patternNonce % phrasePool.length], [patternNonce, phrasePool])
   const recommendation = useMemo(
     () =>
       mode === 'Learn'
@@ -53,6 +93,9 @@ export function RudimentTrainerView() {
   }, [tempo])
 
   useEffect(() => {
+    if (isPlaying) {
+      handleStop()
+    }
     setPatternNonce((value) => value + 1)
   }, [category, mode])
 
@@ -112,6 +155,7 @@ export function RudimentTrainerView() {
   }, [])
 
   function handlePlay() {
+    if (isPlaying) return
     stopScheduler()
     if (sessionIdRef.current) {
       stopPracticeSession('rudiments', sessionIdRef.current, { reason: 'restart' })
@@ -148,10 +192,21 @@ export function RudimentTrainerView() {
     const modes: Array<'Learn' | 'Practice' | 'Challenge' | 'Mastery'> = ['Learn', 'Practice', 'Challenge', 'Mastery']
     const nextCategory = categories[Math.floor(Math.random() * categories.length)]
     const nextMode = modes[Math.floor(Math.random() * modes.length)]
-    setCategory(nextCategory)
-    setMode(nextMode)
-    setPatternNonce(Math.floor(Math.random() * 1000))
-    void trackPracticeEvent('rudiments', 'score', { action: 'randomize', category: nextCategory, mode: nextMode })
+
+    if (randomMode === 'Category + Phrase') {
+      setCategory(nextCategory)
+    } else if (randomMode === 'Full Shuffle') {
+      setCategory(nextCategory)
+      setMode(nextMode)
+    }
+
+    setPatternNonce((value) => value + 1 + Math.floor(Math.random() * 7))
+    void trackPracticeEvent('rudiments', 'score', {
+      action: 'randomize',
+      randomMode,
+      category: randomMode === 'Phrase Only' ? category : nextCategory,
+      mode: randomMode === 'Full Shuffle' ? nextMode : mode,
+    })
   }
 
   return (
@@ -218,6 +273,7 @@ export function RudimentTrainerView() {
             <button
               type="button"
               onClick={handlePlay}
+              disabled={isPlaying}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
             >
               <Play size={12} /> {isPlaying ? 'Playing...' : 'Play'}
@@ -263,6 +319,21 @@ export function RudimentTrainerView() {
           >
             <Shuffle size={14} /> Randomized Practice
           </button>
+          <label className="block text-xs text-zinc-300">
+            Randomization Rule
+            <select
+              value={randomMode}
+              onChange={(event) => setRandomMode(event.target.value as RandomMode)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900 p-2"
+            >
+              <option value="Phrase Only">Phrase Only</option>
+              <option value="Category + Phrase">Category + Phrase</option>
+              <option value="Full Shuffle">Full Shuffle</option>
+            </select>
+          </label>
+          <p className="text-xs text-zinc-500">
+            Phrase Only = keep mode/category. Category + Phrase = keep mode. Full Shuffle = mode + category + phrase.
+          </p>
         </GlassCard>
       </div>
     </div>
