@@ -35,14 +35,19 @@ export async function injectBaselineBoost(days = 4): Promise<void> {
       .filter((item) => item.payload?.testTag === TEST_TAG)
       .map((item) => dateKey(new Date(item.timestamp))),
   )
+  const today = dateKey(new Date())
   const dayOffsetBase = existingBoostDays.size
   const now = Date.now()
   const generated: PracticeEvent[] = []
 
-  for (let day = days; day >= 1; day -= 1) {
-    const offset = dayOffsetBase + day
+  const pushSyntheticDay = (offset: number) => {
     const base = new Date(now - offset * DAY_MS)
-    base.setHours(18, 0, 0, 0)
+    if (offset === 0) {
+      // Keep today's synthetic sessions anchored in the recent past, not future hours.
+      base.setTime(now - 2 * 60 * 60 * 1000)
+    } else {
+      base.setHours(18, 0, 0, 0)
+    }
 
     const sessionA = `boost-metronome-${offset}-${crypto.randomUUID().slice(0, 6)}`
     const startA = new Date(base)
@@ -83,6 +88,16 @@ export async function injectBaselineBoost(days = 4): Promise<void> {
         }),
       )
     }
+  }
+
+  // Ensure the current day is populated once for testing baseline/today views.
+  if (!existingBoostDays.has(today)) {
+    pushSyntheticDay(0)
+  }
+
+  for (let day = days; day >= 1; day -= 1) {
+    const offset = dayOffsetBase + day
+    pushSyntheticDay(offset)
   }
 
   await appendPracticeEvents(generated)
