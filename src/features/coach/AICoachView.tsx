@@ -18,6 +18,7 @@ import { loadUserProfile } from '../../core/services/storage/userProfile'
 import { useAppStore } from '../../core/store/useAppStore'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
+import { TodayFocusPlan } from '../../shared/components/TodayFocusPlan'
 import type { PracticeEvent, UserProfile } from '../../core/types/drumming'
 
 export function AICoachView() {
@@ -111,6 +112,7 @@ export function AICoachView() {
   return (
     <div className="space-y-4">
       <SectionHeader title="AI Coach" subtitle="Personal coaching with baseline-gated progression planning." />
+      <TodayFocusPlan progress={personalProgress} />
 
       <GlassCard className="space-y-2">
         <SectionHeader title="Testing Controls" subtitle="Temporary baseline acceleration tools." />
