@@ -38,6 +38,8 @@ export function RhythmReadingView() {
   const [index, setIndex] = useState(0)
   const [activeStep, setActiveStep] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [loop, setLoop] = useState(false)
+  const loopRef = useRef(false)
 
   const timersRef = useRef<number[]>([])
   const contextRef = useRef<AudioContext | null>(null)
@@ -45,6 +47,8 @@ export function RhythmReadingView() {
 
   const selected = useMemo(() => patterns[index], [index])
   const steps = useMemo(() => selected.notes.map(stepInfo), [selected])
+
+  useEffect(() => { loopRef.current = loop }, [loop])
 
   useEffect(() => {
     return () => {
@@ -176,9 +180,9 @@ export function RhythmReadingView() {
       timersRef.current.push(
         window.setTimeout(() => {
           setActiveStep(stepIndex)
+          void trackPracticeEvent('reading', 'hit', { stepIndex, token }, sessionId)
         }, Math.max(0, offsetMs - 10)),
       )
-      void trackPracticeEvent('reading', 'hit', { stepIndex, token }, sessionId)
 
       offsetMs += beatMs * parseDuration(token)
     })
@@ -187,6 +191,7 @@ export function RhythmReadingView() {
       window.setTimeout(() => {
         void trackPracticeEvent('reading', 'score', { completed: true, stepCount: selected.notes.length, tempo }, sessionId)
         clearPlayback()
+        if (loopRef.current) handlePlayback()
       }, offsetMs + 180),
     )
   }
@@ -270,7 +275,7 @@ export function RhythmReadingView() {
             />
           </label>
           <label className="mt-3 flex items-center gap-2 text-sm text-zinc-300">
-            <input type="checkbox" className="accent-cyan-400" /> Loop section
+            <input type="checkbox" checked={loop} onChange={(event) => setLoop(event.target.checked)} className="accent-cyan-400" /> Loop section
           </label>
           <label className="mt-2 flex items-center gap-2 text-sm text-zinc-300">
             <input type="checkbox" className="accent-cyan-400" /> Sight-reading challenge mode
