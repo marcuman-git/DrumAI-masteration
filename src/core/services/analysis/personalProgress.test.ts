@@ -12,6 +12,8 @@ describe('buildPersonalProgressSnapshot', () => {
     expect(snapshot.anomalyDetected).toBe(false)
     expect(snapshot.recommendedMode).toBe('Stabilize')
     expect(snapshot.activeDaysLast7).toBe(0)
+    expect(snapshot.todayFocus).toBe('Build a reliable baseline')
+    expect(snapshot.next15Minutes.reduce((total, block) => total + block.minutes, 0)).toBe(15)
   })
 
   it('raises cadence and completion ratio with active sessions', () => {
