@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Volume2 } from 'lucide-react'
 import { playPattern } from '../../core/services/audio/rhythmPlayback'
 import type { DrumNotationPattern } from '../../core/services/notation/notationService'
@@ -66,6 +66,16 @@ export function RhythmDictationView() {
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null)
   const [tempo, setTempo] = useState(60)
   const [isPlayingQuestion, setIsPlayingQuestion] = useState(false)
+  const playbackRef = useRef<AbortController | null>(null)
+  const [history, setHistory] = useState<Array<{ question: string; selected: string; correct: string }>>([])
+
+  useEffect(() => () => playbackRef.current?.abort(), [])
+
+  function stopQuestion() {
+    playbackRef.current?.abort()
+    playbackRef.current = null
+    setIsPlayingQuestion(false)
+  }
 
   const questions = useMemo(() => {
     if (difficultyFilter === 'All') return questionBank
@@ -76,6 +86,7 @@ export function RhythmDictationView() {
   const question = questions[questionIndex % questions.length]
 
   function handleDifficultyChange(value: 'All' | Difficulty) {
+    stopQuestion()
     setDifficultyFilter(value)
     setQuestionIndex(0)
     setSelected(null)
@@ -84,6 +95,8 @@ export function RhythmDictationView() {
 
   async function playQuestion() {
     if (isPlayingQuestion) return
+    const controller = new AbortController()
+    playbackRef.current = controller
     setIsPlayingQuestion(true)
     void trackPracticeEvent('dictation', 'start', {
       questionId: question.id,
@@ -91,16 +104,17 @@ export function RhythmDictationView() {
       tempo,
     })
     try {
-      await playPattern(question.prompt, tempo)
+      await playPattern(question.prompt, tempo, undefined, controller.signal)
     } finally {
-      setIsPlayingQuestion(false)
+      if (playbackRef.current === controller) stopQuestion()
     }
   }
 
   function submitAnswer() {
-    if (!selected) return
+    if (!selected || result) return
     const isCorrect = selected === question.correct
     setResult(isCorrect ? 'correct' : 'incorrect')
+    setHistory((items) => [...items, { question: question.prompt.title, selected, correct: question.correct }].slice(-10))
     void trackPracticeEvent('dictation', 'score', {
       questionId: question.id,
       difficulty: question.difficulty,
@@ -117,6 +131,7 @@ export function RhythmDictationView() {
 
   function nextQuestion() {
     if (!result) return
+    stopQuestion()
     setQuestionIndex((value) => (value + 1) % questions.length)
     setSelected(null)
     setResult(null)
@@ -156,6 +171,7 @@ export function RhythmDictationView() {
             >
               <Volume2 size={12} /> {isPlayingQuestion ? 'Playing...' : 'Play Rhythm'}
             </button>
+            <button type="button" onClick={stopQuestion} disabled={!isPlayingQuestion} className="ml-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-60">Stop</button>
           </div>
 
           <div className="grid gap-2">
@@ -233,6 +249,10 @@ export function RhythmDictationView() {
           <p className="mt-3 text-xs text-zinc-400">Modes: Multiple choice, interactive notation, ear training.</p>
           <p className="mt-2 text-xs text-zinc-400">Pool size: {questions.length} quiz items in current track.</p>
           <p className="mt-2 text-xs text-zinc-500">Question {(questionIndex % questions.length) + 1} of {questions.length}</p>
+          <p className="mt-2 text-xs text-zinc-400">Questions rotate in order. This track repeats after {questions.length} questions.</p>
+          <div className="mt-3 space-y-2" aria-label="Answer history">
+            {history.map((item, index) => <p key={index} className="text-xs text-zinc-300">{item.question}: {item.selected === item.correct ? 'Correct' : `Selected ${item.selected}; correct: ${item.correct}`}</p>)}
+          </div>
         </GlassCard>
       </div>
     </div>
