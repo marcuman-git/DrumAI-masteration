@@ -17,10 +17,17 @@ export async function playPattern(
   onStep?: (index: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  if (signal?.aborted) return
   const context = new AudioContext()
+  await context.resume()
+  if (signal?.aborted) {
+    await context.close()
+    return
+  }
   const beatMs = 60000 / bpm
   let offsetMs = 0
   const timerIds: number[] = []
+  let abortHandler: (() => void) | undefined
 
   pattern.notes.forEach((token, index) => {
     if (onStep) {
@@ -62,16 +69,14 @@ export async function playPattern(
         return
       }
 
-      signal.addEventListener(
-        'abort',
-        () => {
+      abortHandler = () => {
           timerIds.forEach((id) => window.clearTimeout(id))
           resolve()
-        },
-        { once: true },
-      )
+        }
+      signal.addEventListener('abort', abortHandler, { once: true })
     }
   })
 
+  if (abortHandler) signal?.removeEventListener('abort', abortHandler)
   await context.close()
 }
