@@ -17,6 +17,7 @@ import { useAppStore } from '../../core/store/useAppStore'
 import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
+import { TodayFocusPlan } from '../../shared/components/TodayFocusPlan'
 
 export function AnalyticsView() {
   const clearHits = useAppStore((state) => state.clearHits)
@@ -113,6 +114,8 @@ export function AnalyticsView() {
           <p className="mt-2 text-4xl font-semibold text-zinc-50">{metrics.bestBpm}</p>
         </GlassCard>
       </section>
+
+      <TodayFocusPlan progress={progress} />
 
       <GlassCard className="h-96">
         <SectionHeader title="Weekly Trend" subtitle="Accuracy, consistency, and speed progression" />
