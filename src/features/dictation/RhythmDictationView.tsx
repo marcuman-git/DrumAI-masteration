@@ -251,7 +251,7 @@ export function RhythmDictationView() {
           <p className="mt-2 text-xs text-zinc-500">Question {(questionIndex % questions.length) + 1} of {questions.length}</p>
           <p className="mt-2 text-xs text-zinc-400">Questions rotate in order. This track repeats after {questions.length} questions.</p>
           <div className="mt-3 space-y-2" aria-label="Answer history">
-            {history.map((item, index) => <p key={index} className="text-xs text-zinc-300">{item.question}: {item.selected === item.correct ? 'Correct' : `Selected ${item.selected}; correct: ${item.correct}`}</p>)}
+            {history.map((item, index) => <p key={index} className="text-xs text-zinc-300">{item.question}: {item.selected === item.correct ? `Correct: ${item.selected}` : `Selected ${item.selected}; correct: ${item.correct}`}</p>)}
           </div>
         </GlassCard>
       </div>
