@@ -21,6 +21,9 @@ export interface PersonalProgressSnapshot {
   activeDaysLast7: number
   nextMilestone: string
   weeklyPlan: string[]
+  todayFocus: string
+  focusReason: string
+  next15Minutes: Array<{ title: string; module: string; minutes: number; instruction: string }>
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -136,6 +139,28 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
     `Day 6-7: Performance simulation + analytics review.`,
   ]
 
+  const recentEvents = events.filter((event) => {
+    const timestamp = +new Date(event.timestamp)
+    return timestamp <= +now && timestamp >= +now - 7 * DAY_MS
+  }).sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp))
+  const recentHits = recentEvents.filter((event) => event.moduleId === 'timing-analyzer' && event.type === 'hit').slice(-100)
+  const recentAnswers = recentEvents.filter((event) => event.moduleId === 'dictation' && event.type === 'score' && typeof event.payload?.isCorrect === 'boolean').slice(-10)
+  const readingNeedsWork = recentAnswers.length >= 3 && recentAnswers.filter((event) => event.payload?.isCorrect === false).length / recentAnswers.length >= 0.4
+  const timingNeedsWork = recentHits.length >= 12 && recentHits.filter((event) => event.payload?.quality === 'perfect').length / recentHits.length < 0.9
+  const todayFocus = !baselineReady ? 'Build a reliable baseline' : timingNeedsWork ? 'Timing control' : readingNeedsWork ? 'Listening and rhythm recognition' : 'Transfer control into grooves'
+  const focusReason = !baselineReady
+    ? 'Starter guidance while collecting 7 days and 180 practice minutes.'
+    : timingNeedsWork
+      ? `Based on the latest ${recentHits.length} timing hits from the last 7 days; perfect-hit accuracy is below 90%.`
+      : readingNeedsWork
+        ? `Based on the latest ${recentAnswers.length} dictation answers from the last 7 days; at least 40% need correction.`
+        : 'No measured timing or listening weakness crossed the focus threshold. Practice musical application at a comfortable tempo.'
+  const next15Minutes: PersonalProgressSnapshot['next15Minutes'] = [
+    { title: 'Warm up', module: 'Smart Metronome', minutes: 3, instruction: 'Play relaxed alternating singles at 60 BPM. Keep both hands even.' },
+    { title: 'Focused drill', module: readingNeedsWork && baselineReady && !timingNeedsWork ? 'Rhythm Dictation' : 'Timing Analyzer', minutes: 8, instruction: readingNeedsWork && baselineReady && !timingNeedsWork ? 'Listen, confirm each answer, and replay any rhythm you missed.' : 'Use Singles (L/R) at 60 BPM. Prioritize clean attacks and compare hand deviations.' },
+    { title: 'Musical transfer', module: 'Groove Library', minutes: 4, instruction: 'Preview a comfortable groove and play along. Keep timing steady without adding speed.' },
+  ]
+
   return {
     baselineReady,
     baselineRequiredMinutes: BASELINE_REQUIRED_MINUTES,
@@ -156,5 +181,8 @@ export function buildPersonalProgressSnapshot(events: PracticeEvent[], now = new
     activeDaysLast7,
     nextMilestone,
     weeklyPlan,
+    todayFocus,
+    focusReason,
+    next15Minutes,
   }
 }
