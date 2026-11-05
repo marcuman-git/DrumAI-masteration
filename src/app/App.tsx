@@ -60,6 +60,9 @@ const AICoachView = lazy(() =>
 const AnalyticsView = lazy(() =>
   import('../features/analytics/AnalyticsView').then((module) => ({ default: module.AnalyticsView })),
 )
+const DynamicsTrainerView = lazy(() =>
+  import('../features/dynamics/DynamicsTrainerView').then((module) => ({ default: module.DynamicsTrainerView })),
+)
 
 function ModuleLoadingState() {
   return (
@@ -101,6 +104,8 @@ function renderModule(moduleId: TrainingModuleId) {
       return <AICoachView />
     case 'analytics':
       return <AnalyticsView />
+    case 'dynamics':
+      return <DynamicsTrainerView />
     default: {
       const moduleData = MODULE_CONTENT[moduleId as keyof typeof MODULE_CONTENT]
       return moduleData ? (
