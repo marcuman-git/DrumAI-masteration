@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   CartesianGrid,
   Legend,
@@ -18,6 +18,7 @@ import type { PracticeEvent } from '../../core/types/drumming'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 import { TodayFocusPlan } from '../../shared/components/TodayFocusPlan'
+const PracticeJournal = lazy(() => import('../journal/PracticeJournal').then((module) => ({ default: module.PracticeJournal })))
 
 export function AnalyticsView() {
   const clearHits = useAppStore((state) => state.clearHits)
@@ -116,6 +117,7 @@ export function AnalyticsView() {
       </section>
 
       <TodayFocusPlan progress={progress} />
+      <Suspense fallback={<p>Loading journal...</p>}><PracticeJournal events={events} /></Suspense>
 
       <GlassCard className="h-96">
         <SectionHeader title="Weekly Trend" subtitle="Accuracy, consistency, and speed progression" />
