@@ -48,7 +48,7 @@ export function AICoachView() {
       window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
     }
-  }, [hits.length, insights.length, micLevel])
+  }, [hits.length, insights.length])
   useEffect(() => {
     void loadUserProfile().then(setProfile)
   }, [])
