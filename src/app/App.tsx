@@ -63,6 +63,9 @@ const AnalyticsView = lazy(() =>
 const DynamicsTrainerView = lazy(() =>
   import('../features/dynamics/DynamicsTrainerView').then((module) => ({ default: module.DynamicsTrainerView })),
 )
+const SpeedTrainerView = lazy(() =>
+  import('../features/speed/SpeedTrainerView').then((module) => ({ default: module.SpeedTrainerView })),
+)
 
 function ModuleLoadingState() {
   return (
@@ -106,6 +109,8 @@ function renderModule(moduleId: TrainingModuleId) {
       return <AnalyticsView />
     case 'dynamics':
       return <DynamicsTrainerView />
+    case 'speed':
+      return <SpeedTrainerView />
     default: {
       const moduleData = MODULE_CONTENT[moduleId as keyof typeof MODULE_CONTENT]
       return moduleData ? (
