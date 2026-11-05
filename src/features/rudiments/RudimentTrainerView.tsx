@@ -3,53 +3,9 @@ import { Play, Shuffle, Square } from 'lucide-react'
 import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
+import { PAS_RUDIMENTS } from './pasRudiments'
 
-const rudiments = {
-  Singles: ['Single Stroke Roll', 'Single Stroke Four', 'Single Stroke Seven'],
-  Doubles: ['Double Stroke Roll', 'Five Stroke Roll', 'Nine Stroke Roll'],
-  Paradiddles: ['Single Paradiddle', 'Double Paradiddle', 'Paradiddle-Diddle'],
-  Flams: ['Flam', 'Flam Accent', 'Flamacue'],
-  Drags: ['Drag', 'Single Drag Tap', 'Double Drag Tap'],
-  Ratamacues: ['Single Ratamacue', 'Double Ratamacue', 'Triple Ratamacue'],
-}
-
-const modePhraseMap: Record<
-  'Learn' | 'Practice' | 'Challenge' | 'Mastery',
-  Record<keyof typeof rudiments, string[]>
-> = {
-  Learn: {
-    Singles: ['R L R L R L R L', 'R R L L R R L L'],
-    Doubles: ['R R L L R R L L', 'R R R R L L L L'],
-    Paradiddles: ['R L R R L R L L', 'L R L L R L R R'],
-    Flams: ['R l L r R l L r', 'R l R l L r L r'],
-    Drags: ['rR L rR L rR L rR L', 'lL R lL R lL R lL R'],
-    Ratamacues: ['R r l R L r l L', 'L l r L R l r R'],
-  },
-  Practice: {
-    Singles: ['R L R L R R L L', 'R R L R L L R L'],
-    Doubles: ['R R L L R L R L', 'R R L L R R L L'],
-    Paradiddles: ['R L R R L R L L', 'R L R L L R L L'],
-    Flams: ['R l L r R l R l', 'L r R l L r L r'],
-    Drags: ['rR rR L lL lL R', 'lL lL R rR rR L'],
-    Ratamacues: ['R r l R R l r L', 'L l r L L r l R'],
-  },
-  Challenge: {
-    Singles: ['R L R L R L L R', 'R R L R L R R L'],
-    Doubles: ['R R L L R R L R', 'L L R R L L R L'],
-    Paradiddles: ['R L R R L L R L', 'L R L L R R L R'],
-    Flams: ['R l L r R l L r R l', 'L r R l L r R l L r'],
-    Drags: ['rR L rR rR L rR L', 'lL R lL lL R lL R'],
-    Ratamacues: ['R r l R R r l L', 'L l r L L l r R'],
-  },
-  Mastery: {
-    Singles: ['R L R L R L R L R L R L', 'R R L L R R L L R L R L'],
-    Doubles: ['R R L L R R L L R R L L', 'R R R R L L L L R R L L'],
-    Paradiddles: ['R L R R L R L L R L R R', 'L R L L R L R R L R L L'],
-    Flams: ['R l L r R l L r R l L r', 'L r R l L r R l L r R l'],
-    Drags: ['rR L rR L rR L rR L rR L', 'lL R lL R lL R lL R lL R'],
-    Ratamacues: ['R r l R L r l L R r l R', 'L l r L R l r R L l r L'],
-  },
-}
+const rudiments: Record<string, string[]> = Object.fromEntries(Array.from(new Set(PAS_RUDIMENTS.map((item) => item.category))).map((category) => [category, PAS_RUDIMENTS.filter((item) => item.category === category).map((item) => item.name)]))
 
 type RandomMode = 'Phrase Only' | 'Category + Phrase' | 'Full Shuffle'
 
@@ -61,6 +17,7 @@ export function RudimentTrainerView() {
   const [loopPlayback, setLoopPlayback] = useState(false)
   const [randomMode, setRandomMode] = useState<RandomMode>('Full Shuffle')
   const [patternNonce, setPatternNonce] = useState(0)
+  const [selectedName, setSelectedName] = useState('Single Paradiddle')
   const [activeTokenIndex, setActiveTokenIndex] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
   const sessionIdRef = useRef<string | null>(null)
@@ -70,19 +27,14 @@ export function RudimentTrainerView() {
   const tempoRef = useRef(tempo)
   const tokensRef = useRef<string[]>([])
 
-  const phrasePool = useMemo(() => modePhraseMap[mode][category], [mode, category])
-  const pattern = useMemo(() => phrasePool[patternNonce % phrasePool.length], [patternNonce, phrasePool])
-  const recommendation = useMemo(
-    () =>
-      mode === 'Learn'
-        ? `Slow control focus: ${rudiments[category][0]} at 50-70 BPM.`
-        : mode === 'Practice'
-          ? `Consistency block: ${rudiments[category][1]} for 6 clean rounds.`
-          : mode === 'Challenge'
-            ? `Accuracy challenge: ${rudiments[category][2]} at +10 BPM from comfort tempo.`
-            : `Mastery pass: rotate all ${category} rudiments with no pause for 10 minutes.`,
-    [category, mode],
-  )
+  const exercise = PAS_RUDIMENTS.find((item) => item.name === selectedName && item.category === category) ?? PAS_RUDIMENTS.find((item) => item.category === category)!
+  const pattern = useMemo(() => {
+    const base = exercise.sticking.split(' ')
+    const invert = mode === 'Challenge' || patternNonce % 2 === 1
+    const phrase = base.map((token) => invert ? token.replace(/[RLrl]/g, (letter) => ({ R: 'L', L: 'R', r: 'l', l: 'r' }[letter]!)) : token)
+    return (mode === 'Mastery' ? [...phrase, ...phrase] : phrase).join(' ')
+  }, [exercise, mode, patternNonce])
+  const recommendation = mode === 'Learn' ? 'Learn slowly at 40-60 BPM. Listen to grace/main stroke separation.' : mode === 'Challenge' ? 'Reverse the lead hand while keeping relaxed control.' : mode === 'Mastery' ? 'Play two phrases smoothly before increasing tempo.' : 'Practice the selected sticking evenly for six rounds.'
 
   useEffect(() => {
     loopRef.current = loopPlayback
@@ -97,7 +49,7 @@ export function RudimentTrainerView() {
       handleStop()
     }
     setPatternNonce((value) => value + 1)
-  }, [category, mode])
+  }, [category, mode, selectedName])
 
   function stopScheduler() {
     if (timerRef.current) {
@@ -106,17 +58,17 @@ export function RudimentTrainerView() {
     }
   }
 
-  function playTick(frequency: number) {
+  function playTick(frequency: number, delay = 0, volume = 0.22) {
     const context = audioContextRef.current
     if (!context) return
     const osc = context.createOscillator()
     const gain = context.createGain()
-    const now = context.currentTime
+    const now = context.currentTime + delay
 
     osc.frequency.value = frequency
     osc.type = frequency >= 1400 ? 'triangle' : 'sine'
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(0.22, now + 0.006)
+    gain.gain.linearRampToValueAtTime(volume, now + 0.006)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045)
     osc.connect(gain)
     gain.connect(context.destination)
@@ -130,7 +82,11 @@ export function RudimentTrainerView() {
     const index = stepRef.current % tokens.length
     const token = tokens[index]
     setActiveTokenIndex(index)
-    playTick(token === 'R' ? 1540 : 980)
+    const main = token.includes('R') ? 'R' : 'L'
+    const grace = token.match(/[rl]/g) ?? []
+    grace.forEach((hand, index) => playTick(hand === 'r' ? 1540 : 980, index * 0.02, 0.08))
+    const buzz = token.startsWith('z') ? 3 : 1
+    for (let bounce = 0; bounce < buzz; bounce += 1) playTick(main === 'R' ? 1540 : 980, grace.length * 0.02 + bounce * 0.015, bounce ? 0.09 : 0.22)
     stepRef.current += 1
 
     if (!loopRef.current && stepRef.current >= tokens.length) {
@@ -188,6 +144,7 @@ export function RudimentTrainerView() {
   }
 
   function handleRandomizedPractice() {
+    handleStop()
     const categories = Object.keys(rudiments) as Array<keyof typeof rudiments>
     const modes: Array<'Learn' | 'Practice' | 'Challenge' | 'Mastery'> = ['Learn', 'Practice', 'Challenge', 'Mastery']
     const nextCategory = categories[Math.floor(Math.random() * categories.length)]
@@ -230,15 +187,16 @@ export function RudimentTrainerView() {
 
           <div className="grid gap-2 md:grid-cols-3">
             {rudiments[category].map((name) => (
-              <div key={name} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <button type="button" onClick={() => setSelectedName(name)} key={name} className={`rounded-lg border p-3 text-left ${exercise.name === name ? 'border-cyan-300 bg-cyan-300/10' : 'border-white/10 bg-black/20'}`}>
                 <p className="text-sm font-medium text-zinc-100">{name}</p>
-                <p className="text-xs text-zinc-400">Tempo progression + audio demo + sticking animation</p>
-              </div>
+                <p className="text-xs text-zinc-400">Select to load sticking and demo</p>
+              </button>
             ))}
           </div>
 
           <div className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4">
-            <p className="text-xs uppercase tracking-wide text-cyan-100">Animated Sticking Display</p>
+            <p className="text-xs uppercase tracking-wide text-cyan-100">#{exercise.number}: {exercise.name}</p>
+            <p className="mt-2 text-xs text-zinc-300">{exercise.guide}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {pattern.split(' ').map((token, index) => (
                 <span
