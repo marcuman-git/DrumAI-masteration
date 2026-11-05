@@ -74,7 +74,8 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
   let dictationMistakes = 0
   let rudimentEvents = 0
   let stickEvents = 0
-  let dynamicsEvents = 0
+  let dynamicsWeightedScore = 0
+  let dynamicsSamples = 0
 
   for (const event of sorted) {
     const ts = new Date(event.timestamp)
@@ -97,7 +98,14 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
     if (event.moduleId === 'dictation' && event.type === 'mistake') dictationMistakes += 1
     if (event.moduleId === 'rudiments') rudimentEvents += 1
     if (event.moduleId === 'stick-control') stickEvents += 1
-    if (event.moduleId === 'metronome' || event.moduleId === 'groove-library') dynamicsEvents += 1
+    if (event.moduleId === 'dynamics' && event.type === 'score') {
+      const consistency = num(event.payload, 'consistency')
+      const sampleCount = num(event.payload, 'sampleCount')
+      if (consistency !== null && sampleCount !== null && Number.isFinite(consistency) && Number.isFinite(sampleCount) && sampleCount >= 3) {
+        dynamicsWeightedScore += clamp(consistency, 0, 100) * sampleCount
+        dynamicsSamples += sampleCount
+      }
+    }
 
     if (!event.sessionId) continue
 
@@ -174,7 +182,7 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
       : 0
   const coordination = timingHitCount ? clamp(100 - Math.round(meanDeviation), 0, 100) : 0
   const reading = readingEvents || dictationMistakes ? clamp(60 + Math.round(readingEvents / 3) - dictationMistakes * 2, 0, 100) : 0
-  const dynamics = dynamicsEvents ? clamp(55 + Math.round(dynamicsEvents / 4), 0, 100) : 0
+  const dynamics = dynamicsSamples ? Math.round(dynamicsWeightedScore / dynamicsSamples) : 0
   const speed = bestBpm ? clamp(40 + Math.round(bestBpm / 3), 0, 100) : 0
   const overall = Math.round((timingAccuracy + coordination + reading + dynamics + speed) / 5)
 

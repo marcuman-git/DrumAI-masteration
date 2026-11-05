@@ -64,4 +64,15 @@ describe('buildPracticeMetrics', () => {
     expect(result.moduleUsage).toHaveLength(0)
     expect(result.weeklyTrend).toHaveLength(7)
   })
+  it('uses measured dynamics scores weighted by strokes, not metronome activity', () => {
+    const timestamp = '2026-10-23T10:00:00.000Z'
+    const events = [
+      event(timestamp, 'metronome', 'score', { bpm: 60 }),
+      event(timestamp, 'dynamics', 'score', { consistency: 80, sampleCount: 3 }),
+      event(timestamp, 'dynamics', 'score', { consistency: 100, sampleCount: 9 }),
+      event(timestamp, 'dynamics', 'score', { consistency: 0, sampleCount: 1 }),
+    ]
+    expect(buildPracticeMetrics(events).dynamicsConsistency).toBe(95)
+    expect(buildPracticeMetrics(events.slice(0, 1)).dynamicsConsistency).toBe(0)
+  })
 })
