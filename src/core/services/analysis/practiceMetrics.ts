@@ -93,6 +93,10 @@ export function buildPracticeMetrics(events: PracticeEvent[]): PracticeMetrics {
       const bpm = num(event.payload, 'bpm') ?? num(event.payload, 'tempo')
       if (bpm !== null) bestBpm = Math.max(bestBpm, Math.round(bpm))
     }
+    if (event.moduleId === 'speed' && event.type === 'score' && event.payload?.qualified === true) {
+      const bpm = num(event.payload, 'bpm')
+      if (bpm !== null && Number.isFinite(bpm)) bestBpm = Math.max(bestBpm, Math.round(bpm))
+    }
 
     if (event.moduleId === 'reading') readingEvents += 1
     if (event.moduleId === 'dictation' && event.type === 'mistake') dictationMistakes += 1

@@ -64,6 +64,15 @@ describe('buildPracticeMetrics', () => {
     expect(result.moduleUsage).toHaveLength(0)
     expect(result.weeklyTrend).toHaveLength(7)
   })
+  it('includes qualifying measured speed BPM but ignores targets and incomplete scores', () => {
+    const timestamp = '2026-10-23T10:00:00.000Z'
+    const events = [
+      event(timestamp, 'speed', 'start', { targetBpm: 240 }),
+      event(timestamp, 'speed', 'score', { bpm: 100, qualified: true }),
+      event(timestamp, 'speed', 'score', { bpm: 200, qualified: false }),
+    ]
+    expect(buildPracticeMetrics(events).bestBpm).toBe(100)
+  })
   it('uses measured dynamics scores weighted by strokes, not metronome activity', () => {
     const timestamp = '2026-10-23T10:00:00.000Z'
     const events = [
