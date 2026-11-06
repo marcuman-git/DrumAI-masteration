@@ -102,15 +102,16 @@ export function PolyrhythmTrainerView() {
     }
   }
   const colors = ['#67e8f9', '#fbbf24']
+  const gridColumns = ratio[0] === 7 && ratio[1] === 8 ? pulses.total / 2 : pulses.total
   return <div className="space-y-4">
     <SectionHeader title="Polyrhythm Trainer" subtitle="Two independent pulse streams over a shared four-beat cycle." />
     <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-      <GlassCard className="space-y-3">
+      <GlassCard className="min-w-0 space-y-3">
         <div className="flex flex-wrap gap-2">{RATIOS.map((item) => { const selected = ratio[0] === item[0] && ratio[1] === item[1]; return <button key={item.join(':')} aria-pressed={selected} onClick={() => { stop(); setRatio(item); setCycles(0); setMessage('Ratio changed. Press Play to start the new cycle.') }} className={`rounded-lg border px-3 py-2 text-xs ${selected ? 'border-cyan-200 bg-cyan-500/30 text-cyan-100 ring-1 ring-cyan-300' : 'border-white/15 bg-white/5 text-zinc-300'}`}>{item.join(':')}</button> })}</div>
         <div className="rounded-xl border border-white/15 bg-black/25 p-3">
           <p className="text-xs uppercase tracking-wide text-zinc-400">{viewMode} View</p>
-          {viewMode === 'Grid' && <div className="mt-3 overflow-x-auto"><div style={{ minWidth: Math.max(360, pulses.total * 25) }}>
-            {[pulses.first, pulses.second].map((stream, row) => <div key={row} className="mb-3"><p className="mb-2 text-sm" style={{ color: colors[row] }}>{row === 0 ? 'First' : 'Second'} stream: {ratio[row]} pulses</p><div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${pulses.total}, minmax(0, 1fr))` }}>{stream.map((on, step) => <span key={step} aria-label={`${row === 0 ? 'First' : 'Second'} stream step ${step + 1}: ${on ? 'pulse' : 'rest'}`} className={`flex h-8 items-center justify-center rounded border text-xs ${step === active ? 'ring-2 ring-white' : ''}`} style={{ background: on ? colors[row] : '#27272a', color: on ? '#18181b' : '#a1a1aa', opacity: muted[row] ? 0.4 : 1 }}>{on ? 'x' : '-'}</span>)}</div></div>)}
+          {viewMode === 'Grid' && <div className="mt-3 overflow-x-auto"><div style={{ minWidth: Math.max(360, gridColumns * 22) }}>
+            {[pulses.first, pulses.second].map((stream, row) => <div key={row} className="mb-3"><p className="mb-2 text-sm" style={{ color: colors[row] }}>{row === 0 ? 'First' : 'Second'} stream: {ratio[row]} pulses</p>{Array.from({ length: pulses.total / gridColumns }, (_, line) => <div key={line} className="mb-2"><p className="mb-1 text-xs text-zinc-400">Steps {line * gridColumns + 1}-{(line + 1) * gridColumns}</p><div data-testid={`poly-stream-${row}-line-${line}`} className="grid gap-1" style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}>{stream.slice(line * gridColumns, (line + 1) * gridColumns).map((on, offset) => { const step = line * gridColumns + offset; return <span key={step} aria-label={`${row === 0 ? 'First' : 'Second'} stream step ${step + 1}: ${on ? 'pulse' : 'rest'}`} className={`flex h-8 items-center justify-center rounded border text-xs ${step === active ? 'ring-2 ring-white' : ''}`} style={{ background: on ? colors[row] : '#27272a', color: on ? '#18181b' : '#a1a1aa', opacity: muted[row] ? 0.4 : 1 }}>{on ? 'x' : '-'}</span> })}</div></div>)}</div>)}
           </div></div>}
           {viewMode === 'Circle' && <svg role="img" aria-label="Two polyrhythm circles with synchronized rotating playhead" viewBox="0 0 320 320" className="mx-auto mt-3 w-full max-w-80">
             {[0, 1].map((row) => { const radius = row === 0 ? 125 : 85; return <g key={row} opacity={muted[row] ? 0.4 : 1}><circle cx={160} cy={160} r={radius} fill="none" stroke={colors[row]} strokeOpacity={0.3} />{Array.from({ length: ratio[row] }, (_, index) => { const angle = index / ratio[row] * Math.PI * 2 - Math.PI / 2; const lit = playing && active >= 0 && Math.floor(active * ratio[row] / pulses.total) === index; return <circle key={index} cx={160 + radius * Math.cos(angle)} cy={160 + radius * Math.sin(angle)} r={lit ? 10 : 6} fill={colors[row]} stroke={lit ? 'white' : 'none'} strokeWidth={2} /> })}</g> })}
@@ -125,7 +126,7 @@ export function PolyrhythmTrainerView() {
         </div>
         <div className="grid grid-cols-2 gap-3">{[0, 1].map((row) => <div key={row} className="rounded-lg border border-white/20 p-3" style={{ color: colors[row] }}><p>{row === 0 ? 'First' : 'Second'} stream: {ratio[row]} pulses</p><p className="mt-1 text-sm">Current pulse: {active < 0 ? '-' : Math.floor(active * ratio[row] / pulses.total) + 1}</p><button aria-pressed={muted[row]} onClick={() => setMuted((current) => current.map((value, index) => index === row ? !value : value))} className="mt-2 rounded border border-white/25 px-3 py-1 text-xs">{muted[row] ? 'Unmute' : 'Mute'} {row === 0 ? 'first' : 'second'}</button></div>)}</div>
       </GlassCard>
-      <GlassCard className="space-y-3">
+      <GlassCard className="min-w-0 space-y-3">
         <p className="text-xs uppercase tracking-wide text-zinc-400">Trainer Controls</p>
         <label className="block text-xs text-zinc-300">Tempo {tempo} BPM<input aria-label="Tempo BPM" type="range" min={40} max={240} value={tempo} onChange={(event) => setTempo(Number(event.target.value))} className="mt-2 w-full accent-cyan-400" /></label>
         <p className="text-xs text-zinc-400">BPM sets the reference quarter-note pulse. One full ratio cycle lasts four reference beats ({cycleSeconds(tempo).toFixed(2)} seconds at this tempo), not one beat.</p>
