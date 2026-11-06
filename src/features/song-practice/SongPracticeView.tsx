@@ -9,12 +9,16 @@ import {
 } from '../../core/services/audio/songPracticeEngine'
 import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
-
-const PLAYLIST_KEY = 'drummaster-song-playlist-v1'
+import { SongChartEditor } from './SongChartEditor'
 
 export function SongPracticeView() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const detachLoopRef = useRef<null | (() => void)>(null)
+  const countInRef = useRef<AbortController | null>(null)
+  const urlsRef = useRef(new Set<string>())
+  const [mode, setMode] = useState<'chart' | 'audio'>('chart')
+  const [isCountingIn, setIsCountingIn] = useState(false)
+  const [audioMessage, setAudioMessage] = useState('Audio uploads are available for this visit only. Reloading requires choosing the audio files again.')
 
   const [tracks, setTracks] = useState<SongTrack[]>([])
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
@@ -35,18 +39,10 @@ export function SongPracticeView() {
     [tracks, selectedTrackId],
   )
 
-  useEffect(() => {
-    const saved = localStorage.getItem(PLAYLIST_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved) as SongTrack[]
-      setTracks(parsed)
-      setSelectedTrackId(parsed[0]?.id ?? null)
-    }
+  useEffect(() => () => {
+    countInRef.current?.abort()
+    for (const url of urlsRef.current) URL.revokeObjectURL(url)
   }, [])
-
-  useEffect(() => {
-    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(tracks))
-  }, [tracks])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -60,13 +56,16 @@ export function SongPracticeView() {
       detachLoopRef.current?.()
       detachLoopRef.current = null
     }
-  }, [settings, selectedTrackId])
+  }, [settings, selectedTrackId, mode])
 
   async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
 
+    pausePlayback()
     const url = URL.createObjectURL(file)
+    urlsRef.current.add(url)
+    event.target.value = ''
     const track: SongTrack = {
       id: crypto.randomUUID(),
       name: file.name,
@@ -86,11 +85,20 @@ export function SongPracticeView() {
       audio.currentTime = settings.loopStart
     }
 
-    await playWithCountIn(audio, settings, countInBeats, countInBpm)
-    setIsPlaying(true)
+    countInRef.current?.abort()
+    const controller = new AbortController()
+    countInRef.current = controller
+    setIsCountingIn(true)
+    try {
+      await playWithCountIn(audio, settings, countInBeats, countInBpm, controller.signal)
+      if (!controller.signal.aborted) setIsPlaying(true)
+    } catch { if (!controller.signal.aborted) setAudioMessage('Audio could not play. Check the file and browser audio permissions.') }
+    finally { if (countInRef.current === controller) setIsCountingIn(false) }
   }
 
   function pausePlayback() {
+    countInRef.current?.abort()
+    setIsCountingIn(false)
     const audio = audioRef.current
     if (!audio) return
     audio.pause()
@@ -99,9 +107,10 @@ export function SongPracticeView() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Song Practice" subtitle="Upload songs, preserve pitch while changing tempo, loop sections, and run count-in starts." />
+      <SectionHeader title="Song Practice" subtitle="Create editable drum charts, or practice separately with uploaded audio tracks." />
+      <div className="flex gap-2">{(['chart', 'audio'] as const).map((value) => <button key={value} aria-pressed={mode === value} onClick={() => { pausePlayback(); setMode(value) }} className={`rounded-lg border px-4 py-2 ${mode === value ? 'border-cyan-200 bg-cyan-300/20' : 'border-white/20'}`}>{value === 'chart' ? 'Drum Chart' : 'Audio Tracks'}</button>)}</div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
+      {mode === 'chart' ? <SongChartEditor /> : <><p role="status" className="text-sm text-zinc-300">{audioMessage}</p><div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
         <GlassCard className="space-y-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-100">
             <Upload size={12} /> Upload Audio
@@ -113,7 +122,7 @@ export function SongPracticeView() {
               <button
                 key={track.id}
                 type="button"
-                onClick={() => setSelectedTrackId(track.id)}
+                onClick={() => { pausePlayback(); setSelectedTrackId(track.id) }}
                 className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm ${track.id === selectedTrackId ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100' : 'border-white/10 text-zinc-300'}`}
               >
                 <span className="inline-flex items-center gap-2">
@@ -132,6 +141,8 @@ export function SongPracticeView() {
               className="w-full"
               onPause={() => setIsPlaying(false)}
               onPlay={() => setIsPlaying(true)}
+              onEnded={() => setIsPlaying(false)}
+              onError={() => setAudioMessage('This audio file could not load. Choose a supported audio file again.')}
             />
           ) : (
             <p className="text-sm text-zinc-400">Add a track to start playlist practice and setlists.</p>
@@ -142,15 +153,15 @@ export function SongPracticeView() {
               type="button"
               onClick={() => void startPlayback()}
               className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100"
-              disabled={!selectedTrack || isPlaying}
+              disabled={!selectedTrack || isPlaying || isCountingIn}
             >
-              <Play size={12} /> {isPlaying ? 'Playing...' : 'Count-in + Play'}
+              <Play size={12} /> {isPlaying ? 'Playing...' : isCountingIn ? 'Counting in...' : 'Count-in + Play'}
             </button>
             <button
               type="button"
               onClick={pausePlayback}
               className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-100"
-              disabled={!selectedTrack || !isPlaying}
+              disabled={!selectedTrack || (!isPlaying && !isCountingIn)}
             >
               <Pause size={12} /> Pause
             </button>
@@ -254,7 +265,7 @@ export function SongPracticeView() {
             />
           </label>
         </GlassCard>
-      </div>
+      </div></>}
     </div>
   )
 }
