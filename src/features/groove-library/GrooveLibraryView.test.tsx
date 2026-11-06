@@ -21,6 +21,18 @@ function prepareAudio() {
 }
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.removeItem('drummaster-groove-playlist-v1') })
 describe('Groove Library', () => {
+  it('opens the playlist genre and stops audio when its playing entry is removed', async () => {
+    prepareAudio(); render(<GrooveLibraryView />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Rock' }))
+    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Play playlist groove' })[1]); await Promise.resolve() })
+    expect(screen.getByRole('button', { name: 'Funk' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Ghost Grid Funk' }))
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove Basic Rock Pocket' })).toBeInTheDocument()
+  })
   it('shows instrument notes, ghost notes and correct meter grids', () => {
     render(<GrooveLibraryView />)
     expect(screen.getByRole('slider', { name: 'Tempo BPM' })).toHaveValue('60')
