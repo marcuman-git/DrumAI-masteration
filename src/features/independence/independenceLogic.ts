@@ -30,12 +30,16 @@ export function stepDuration(bpm: number, step: number, swing: boolean): number 
   return 60 / bpm / 4 * (swing ? (step % 4 < 2 ? 4 / 3 : 2 / 3) : 1)
 }
 export interface SavedCoordination { grid: LimbGrid; bpm: number; swing: boolean; profile?: Record<Limb, string> }
+export function isCoordination(value: unknown): value is SavedCoordination {
+  if (!value || typeof value !== 'object') return false
+  const parsed = value as SavedCoordination
+  return Number.isFinite(parsed.bpm) && parsed.bpm >= 40 && parsed.bpm <= 240 && typeof parsed.swing === 'boolean'
+    && LIMBS.every((limb) => Array.isArray(parsed.grid?.[limb]) && parsed.grid[limb].length === 16 && parsed.grid[limb].every((step) => typeof step === 'boolean'))
+    && (!parsed.profile || LIMBS.every((limb) => parsed.profile?.[limb] === 'Custom' || LIMB_PATTERNS[limb].includes(parsed.profile?.[limb] ?? '')))
+}
 export function loadCoordination(): SavedCoordination | null {
   try {
     const parsed = JSON.parse(localStorage.getItem('drummaster-independence-v1') ?? 'null') as SavedCoordination | null
-    if (!parsed || !Number.isFinite(parsed.bpm) || parsed.bpm < 40 || parsed.bpm > 240 || typeof parsed.swing !== 'boolean') return null
-    if (!LIMBS.every((limb) => Array.isArray(parsed.grid?.[limb]) && parsed.grid[limb].length === 16 && parsed.grid[limb].every((value) => typeof value === 'boolean'))) return null
-    if (parsed.profile && !LIMBS.every((limb) => parsed.profile?.[limb] === 'Custom' || LIMB_PATTERNS[limb].includes(parsed.profile?.[limb] ?? ''))) return null
-    return parsed
+    return isCoordination(parsed) ? parsed : null
   } catch { return null }
 }

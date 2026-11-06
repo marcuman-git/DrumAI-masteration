@@ -17,8 +17,21 @@ class AudioMock {
   createBufferSource() { return { buffer: null, connect: vi.fn(), start: vi.fn(), stop: vi.fn() } }
   createBiquadFilter() { return { type: '', frequency: { value: 0 }, Q: { value: 0 }, connect: vi.fn() } }
 }
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.removeItem('drummaster-independence-v1') })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.removeItem('drummaster-independence-v1'); localStorage.removeItem('drummaster-independence-library-v1') })
 describe('Independence Trainer', () => {
+  it('highlights the genre and keeps more than one named save selectable', () => {
+    render(<IndependenceTrainerView />)
+    expect(screen.getByRole('button', { name: 'Rock' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Exercise name' }), { target: { value: 'Rock test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save exercise' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Jazz' }))
+    expect(screen.getByRole('button', { name: 'Jazz' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Rock' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Exercise name' }), { target: { value: 'Jazz test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save exercise' }))
+    expect(screen.getByRole('option', { name: 'Rock test' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Jazz test' })).toBeInTheDocument()
+  })
   it('edits individual steps, mutes limbs, and saves/loads settings', () => {
     render(<IndependenceTrainerView />)
     const cell = screen.getByRole('button', { name: 'LH step 1' })
