@@ -104,7 +104,7 @@ export function GrooveLibraryView() {
   return <div className="space-y-4">
     <SectionHeader title="Groove Library" subtitle="Curated instrument patterns with synchronized playback, loops, and a saved practice playlist." />
     <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-      <GlassCard layout="position" className="min-w-0 space-y-3">
+      <GlassCard layout={false} className="min-w-0 space-y-3">
         <div className="flex flex-wrap gap-2">{['All', 'Rock', 'Funk', 'Jazz', 'Latin', 'Metal', 'Progressive'].map((style) => <button key={style} aria-pressed={styleFilter === style} onClick={() => { setStyleFilter(style); if (style !== 'All' && selected.style !== style) { stop(); setSelectedId(GROOVES.find((groove) => groove.style === style)!.id); setBars(0) } }} className={`inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-lg border px-3 py-2 text-xs ${styleFilter === style ? 'border-cyan-200 bg-cyan-300/20 text-cyan-100' : 'border-white/15 bg-white/5 text-zinc-300'}`}>{style}</button>)}</div>
         <div className="grid gap-2">{filtered.map((groove) => <div key={groove.id} className={`rounded-lg border bg-black/20 p-3 ${selectedId === groove.id ? 'border-cyan-300/60' : 'border-white/10'}`}>
           <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-semibold">{groove.title}</p><p className="text-xs text-zinc-400">{groove.style} | {groove.meter} | Suggested BPM {groove.bpmRange}</p></div><span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-[10px] text-cyan-100">{groove.focus}</span></div>
@@ -125,7 +125,7 @@ export function GrooveLibraryView() {
           <p className="mt-3 text-xs text-zinc-400">x = note, (x) = softer ghost note, - = rest. Amber outlines follow the current column. This is a drum grid, not conventional staff notation. In 7/8, numbers count eighth notes and + marks the halfway sixteenth.</p>
         </div>
       </GlassCard>
-      <GlassCard layout="position" className="min-w-0 space-y-3">
+      <GlassCard layout={false} className="min-w-0 space-y-3">
         <h3 className="text-sm font-semibold">Playback Controls</h3>
         <label className="block text-xs text-zinc-300">Tempo {bpm} BPM<input aria-label="Tempo BPM" type="range" min={40} max={240} value={bpm} onChange={(event) => setBpm(Number(event.target.value))} className="mt-2 w-full accent-cyan-400" /></label>
         <label className="block text-xs text-zinc-300">Volume {Math.round(volume * 100)}%<input aria-label="Volume" type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="mt-2 w-full accent-cyan-400" /></label>
