@@ -38,8 +38,13 @@ export async function playWithCountIn(
   settings: PlaybackSettings,
   countInBeats: number,
   bpm: number,
+  signal?: AbortSignal,
 ): Promise<void> {
+  if (signal?.aborted) return
+  if (!Number.isFinite(bpm) || bpm < 40 || bpm > 240 || !Number.isInteger(countInBeats) || countInBeats < 0 || countInBeats > 8) throw new Error('Invalid count-in settings.')
   const context = new AudioContext()
+  await context.resume()
+  if (signal?.aborted) { await context.close(); return }
   const beatDuration = 60 / bpm
 
   for (let i = 0; i < countInBeats; i += 1) {
@@ -58,9 +63,17 @@ export async function playWithCountIn(
     osc.stop(t + 0.12)
   }
 
-  await new Promise((resolve) => window.setTimeout(resolve, countInBeats * beatDuration * 1000))
-  await context.close()
+  await new Promise<void>((resolve) => {
+    const done = () => { signal?.removeEventListener('abort', abort); resolve() }
+    const timer = window.setTimeout(done, countInBeats * beatDuration * 1000)
+    const abort = () => { window.clearTimeout(timer); void context.close(); done() }
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
+  })
+  if (context.state !== 'closed') await context.close()
+  if (signal?.aborted) return
 
   applyAudioSettings(audio, settings)
   await audio.play()
+  if (signal?.aborted) audio.pause()
 }
