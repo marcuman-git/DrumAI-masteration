@@ -3,6 +3,8 @@ import type { PracticeEvent, PracticeEventType, TrainingModuleId } from '../../t
 
 const EVENTS_KEY = 'drummaster-ai-practice-events-v1'
 const EVENTS_FALLBACK_KEY = 'drummaster-ai-practice-events-fallback-v1'
+export const PRACTICE_EVENTS_KEY = EVENTS_KEY
+export const PRACTICE_EVENTS_FALLBACK_KEY = EVENTS_FALLBACK_KEY
 export const MAX_STORED_EVENTS = 50000
 export const MAX_ANALYTICS_EVENTS = 50000
 
@@ -19,7 +21,7 @@ function safeParse(raw: string | null): PracticeEvent[] {
   }
 }
 
-async function readEvents(): Promise<PracticeEvent[]> {
+export async function readPracticeEventsSnapshot(): Promise<PracticeEvent[]> {
   try {
     const fromDb = await get<PracticeEvent[]>(EVENTS_KEY)
     if (Array.isArray(fromDb)) return fromDb
@@ -28,6 +30,7 @@ async function readEvents(): Promise<PracticeEvent[]> {
   }
   return safeParse(localStorage.getItem(EVENTS_FALLBACK_KEY))
 }
+const readEvents = readPracticeEventsSnapshot
 
 async function writeEvents(events: PracticeEvent[]): Promise<void> {
   try {
@@ -41,6 +44,11 @@ async function writeEvents(events: PracticeEvent[]): Promise<void> {
 function enqueueWrite(task: () => Promise<void>): Promise<void> {
   writeQueue = writeQueue.then(task).catch(() => undefined)
   return writeQueue
+}
+export function withPracticeStorageLock<T>(task: () => Promise<T>): Promise<T> {
+  const operation = writeQueue.then(task)
+  writeQueue = operation.then(() => undefined, () => undefined)
+  return operation
 }
 
 function sortByTimestamp(events: PracticeEvent[]): PracticeEvent[] {
@@ -80,16 +88,17 @@ export function trackPracticeEvent(
 }
 
 export async function listPracticeEvents(limit = 500): Promise<PracticeEvent[]> {
+  await writeQueue
   const events = await readEvents()
   return events.slice(-Math.max(1, limit))
 }
 
 export async function clearPracticeEvents(): Promise<void> {
-  await writeEvents([])
+  await withPracticeStorageLock(() => writeEvents([]))
 }
 
 export async function replacePracticeEvents(events: PracticeEvent[]): Promise<void> {
-  await writeEvents(sortByTimestamp(events).slice(-MAX_STORED_EVENTS))
+  await withPracticeStorageLock(() => writeEvents(sortByTimestamp(events).slice(-MAX_STORED_EVENTS)))
 }
 
 export function appendPracticeEvents(events: PracticeEvent[]): Promise<void> {
