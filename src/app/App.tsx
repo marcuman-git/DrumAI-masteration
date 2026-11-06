@@ -48,6 +48,9 @@ const GrooveLibraryView = lazy(() =>
 const PolyrhythmTrainerView = lazy(() =>
   import('../features/polyrhythm/PolyrhythmTrainerView').then((module) => ({ default: module.PolyrhythmTrainerView })),
 )
+const OddTimeTrainerView = lazy(() =>
+  import('../features/odd-time/OddTimeTrainerView').then((module) => ({ default: module.OddTimeTrainerView })),
+)
 const PracticePadModeView = lazy(() =>
   import('../features/practice-pad/PracticePadModeView').then((module) => ({ default: module.PracticePadModeView })),
 )
@@ -99,6 +102,8 @@ function renderModule(moduleId: TrainingModuleId) {
       return <GrooveLibraryView />
     case 'polyrhythm':
       return <PolyrhythmTrainerView />
+    case 'odd-time':
+      return <OddTimeTrainerView />
     case 'practice-pad':
       return <PracticePadModeView />
     case 'song-practice':
