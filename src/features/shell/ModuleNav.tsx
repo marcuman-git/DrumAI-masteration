@@ -9,6 +9,7 @@ export function ModuleNav() {
 
   return (
     <nav className="rounded-2xl border border-white/10 bg-black/35 p-2 backdrop-blur">
+      <p className="px-2 pb-2 text-xs text-zinc-400">Suggested beginner path: follow steps 1-15 at your own pace. All modules remain available.</p>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
         {MODULES.map((module) => {
           const active = activeModule === module.id
@@ -31,7 +32,7 @@ export function ModuleNav() {
                 ) : null}
                 <span className="relative block font-medium">{module.label}</span>
                 <span className="relative mt-1 block text-[10px] uppercase tracking-wide text-zinc-400">
-                  {module.category}
+                  {module.practiceOrder ? `Step ${module.practiceOrder} / ${module.category}` : module.category}
                 </span>
               </button>
             </li>
