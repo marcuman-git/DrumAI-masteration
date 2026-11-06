@@ -12,6 +12,12 @@ export function groupingStarts(grouping: number[]): number[] {
   let position = 0
   return grouping.map((length) => { const start = position; position += length; return start })
 }
+export function groupingRows(meter: OddMeter, grouping: number[]) {
+  const groups = grouping.map((length, group) => ({ length, group }))
+  if (!meter.endsWith('/16')) return [groups]
+  const split = Math.ceil(groups.length / 2)
+  return [groups.slice(0, split), groups.slice(split)]
+}
 export function oddPattern(meter: OddMeter, grouping: number[], mode: OddMode) {
   const { units } = meterParts(meter)
   const starts = groupingStarts(grouping)

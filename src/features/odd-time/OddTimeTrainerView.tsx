@@ -3,7 +3,7 @@ import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 import { createGroovePlayer } from '../groove-library/grooveAudio'
 import { startPracticeSession, stopPracticeSession, trackPracticeEvent } from '../../core/services/storage/practiceEvents'
-import { GROUPINGS, groupingStarts, meterParts, METERS, oddPattern, unitSeconds } from './oddTimeLogic'
+import { GROUPINGS, groupingRows, groupingStarts, meterParts, METERS, oddPattern, unitSeconds } from './oddTimeLogic'
 import type { OddMeter, OddMode } from './oddTimeLogic'
 
 export function OddTimeTrainerView() {
@@ -111,6 +111,7 @@ export function OddTimeTrainerView() {
     }
   }
   const unit = meterParts(meter).denominator === 4 ? 'quarter' : meterParts(meter).denominator === 8 ? 'eighth' : 'sixteenth'
+  const compact = meter.endsWith('/16')
   return <div className="space-y-4">
     <SectionHeader title="Odd Time Trainer" subtitle="Learn odd meters by grouping, counting, and playing complete musical bars." />
     <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -118,7 +119,18 @@ export function OddTimeTrainerView() {
         <div className="flex flex-wrap gap-2">{METERS.map((value) => <button key={value} aria-pressed={meter === value} onClick={() => { resetPattern(); setMeter(value); setGroupIndex(0) }} className={`rounded-lg border px-3 py-2 ${meter === value ? 'border-cyan-200 bg-cyan-300/20 text-cyan-100' : 'border-white/15 bg-white/5'}`}>{value}</button>)}</div>
         <h3 className="text-sm font-semibold">Group the bar</h3>
         <div className="flex flex-wrap gap-2">{GROUPINGS[meter].map((value, index) => <button key={value.join('+')} aria-pressed={groupIndex === index} onClick={() => { resetPattern(); setGroupIndex(index) }} className={`rounded-lg border px-3 py-2 text-sm ${groupIndex === index ? 'border-amber-200 bg-amber-300/15 text-amber-100' : 'border-white/15'}`}>{value.join(' + ')}</button>)}</div>
-        <div className="overflow-x-auto rounded-lg border border-white/15 bg-black/25 p-2"><div className="flex min-w-max gap-3 p-1">{grouping.map((length, group) => <div key={group} className="rounded-lg border border-cyan-300/30 p-2"><p className="mb-2 text-center text-xs text-cyan-200">Group {group + 1}: {length}</p><div className="flex gap-2">{Array.from({ length }, (_, offset) => { const index = starts[group] + offset; const note = pattern[index]; return <div key={offset} data-testid={`odd-unit-${index}`} className={`flex h-24 w-14 flex-col items-center justify-center rounded-lg border ${active === index ? 'border-amber-200 bg-amber-300/20 ring-2 ring-amber-300' : 'border-white/15 bg-zinc-900'}`}><p className="text-xl font-semibold">{offset + 1}</p><p className="mt-1 text-xs text-cyan-200">{mode === 'Fill' ? note.hand : mode === 'Click' ? note.accent && accents ? 'Accent' : 'Click' : note.kick ? 'Kick' : note.snare ? 'Snare' : 'Hi-hat'}</p>{mode === 'Groove' && (note.kick || note.snare) && <p className="text-[10px] text-zinc-400">+ Hi-hat</p>}</div> })}</div></div>)}</div></div>
+        <div className={`rounded-lg border border-white/15 bg-black/25 p-2 ${compact ? '' : 'overflow-x-auto'}`}>
+          {groupingRows(meter, grouping).map((groups, row) => <div key={row} data-testid={`odd-group-row-${row}`} className={compact ? 'mb-3 grid gap-2 p-1 last:mb-0' : 'flex min-w-max gap-3 p-1'} style={compact ? { gridTemplateColumns: groups.map(({ length }) => `${length}fr`).join(' ') } : undefined}>
+            {groups.map(({ length, group }) => <div key={group} className={`min-w-0 rounded-lg border border-cyan-300/30 ${compact ? 'p-1' : 'p-2'}`}><p className="mb-2 text-center text-xs text-cyan-200">{compact ? `G${group + 1}: ${length}` : `Group ${group + 1}: ${length}`}</p>
+              <div className={compact ? 'grid gap-1' : 'flex gap-2'} style={compact ? { gridTemplateColumns: `repeat(${length}, minmax(0, 1fr))` } : undefined}>{Array.from({ length }, (_, offset) => {
+                const index = starts[group] + offset; const note = pattern[index]
+                const label = mode === 'Fill' ? note.hand : mode === 'Click' ? note.accent && accents ? compact ? '>' : 'Accent' : compact ? 'x' : 'Click' : compact ? note.kick ? 'K+H' : note.snare ? 'S+H' : 'H' : note.kick ? 'Kick' : note.snare ? 'Snare' : 'Hi-hat'
+                return <div key={offset} data-testid={`odd-unit-${index}`} className={`flex h-24 min-w-0 flex-col items-center justify-center rounded-lg border ${compact ? 'w-full' : 'w-14'} ${active === index ? 'border-amber-200 bg-amber-300/20 ring-2 ring-amber-300' : 'border-white/15 bg-zinc-900'}`}><p className="text-xl font-semibold">{offset + 1}</p><p className={`mt-1 text-cyan-200 ${compact ? 'text-[10px]' : 'text-xs'}`}>{label}</p>{!compact && mode === 'Groove' && (note.kick || note.snare) && <p className="text-[10px] text-zinc-400">+ Hi-hat</p>}</div>
+              })}</div>
+            </div>)}
+          </div>)}
+        </div>
+        {compact && <p className="text-xs text-zinc-400">Two-row view: G = group, &gt; = accented click, x = click, K = kick, S = snare, H = hi-hat. The second row continues the same bar.</p>}
         <p className="text-sm text-zinc-300">Count aloud: {grouping.map((length) => Array.from({ length }, (_, index) => index + 1).join('-')).join(' | ')}</p>
         <p className="text-xs text-zinc-400">Each card represents one {unit} note. Group borders show the phrasing. This is a counting grid, not conventional staff notation. Fill mode is a simple alternating-hand grouping study.</p>
         <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-3"><p>{meter} = {grouping.join(' + ')} {unit} notes</p><p className="mt-1 text-sm text-zinc-300">One bar: {(unitSeconds(meter, bpm) * pattern.length).toFixed(2)} seconds at {bpm} BPM. Completed bars: {bars}</p></div>

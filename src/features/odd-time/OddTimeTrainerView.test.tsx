@@ -24,6 +24,8 @@ describe('Odd Time Trainer', () => {
     expect(screen.getByRole('slider', { name: 'Tempo BPM' })).toHaveAttribute('max', '240')
     fireEvent.click(screen.getByRole('button', { name: '13/16' }))
     expect(screen.getByTestId('odd-unit-12')).toBeInTheDocument()
+    expect(screen.getByTestId('odd-group-row-0').children).toHaveLength(3)
+    expect(screen.getByTestId('odd-group-row-1').children).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Fill' }))
     expect(screen.getByTestId('odd-unit-0')).toHaveTextContent('R')
     expect(screen.getByTestId('odd-unit-1')).toHaveTextContent('L')

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { GROUPINGS, groupingStarts, meterParts, METERS, oddPattern, unitSeconds } from './oddTimeLogic'
+import { GROUPINGS, groupingRows, groupingStarts, meterParts, METERS, oddPattern, unitSeconds } from './oddTimeLogic'
 describe('odd meter grouping', () => {
+  it('splits /16 groups into two rows without losing indices or units', () => {
+    for (const meter of ['13/16', '15/16'] as const) for (const grouping of GROUPINGS[meter]) {
+      const rows = groupingRows(meter, grouping)
+      expect(rows).toHaveLength(2)
+      expect(rows.flat().map((item) => item.group)).toEqual(grouping.map((_, index) => index))
+      expect(rows.flat().reduce((sum, item) => sum + item.length, 0)).toBe(meterParts(meter).units)
+    }
+  })
   it('preserves the complete meter for all available groupings', () => {
     for (const meter of METERS) for (const grouping of GROUPINGS[meter]) {
       expect(grouping.reduce((sum, value) => sum + value, 0)).toBe(meterParts(meter).units)
