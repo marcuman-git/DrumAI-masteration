@@ -19,10 +19,12 @@ import { GlassCard } from '../../shared/components/GlassCard'
 import { SectionHeader } from '../../shared/components/SectionHeader'
 import { TodayFocusPlan } from '../../shared/components/TodayFocusPlan'
 const PracticeJournal = lazy(() => import('../journal/PracticeJournal').then((module) => ({ default: module.PracticeJournal })))
+const BackupPanel = lazy(() => import('../backup/BackupPanel').then((module) => ({ default: module.BackupPanel })))
 
 export function AnalyticsView() {
   const clearHits = useAppStore((state) => state.clearHits)
   const [events, setEvents] = useState<PracticeEvent[]>([])
+  const [journalRevision, setJournalRevision] = useState(0)
 
   useEffect(() => {
     let mounted = true
@@ -117,7 +119,8 @@ export function AnalyticsView() {
       </section>
 
       <TodayFocusPlan progress={progress} />
-      <Suspense fallback={<p>Loading journal...</p>}><PracticeJournal events={events} /></Suspense>
+      <Suspense fallback={<p>Loading journal...</p>}><PracticeJournal key={journalRevision} events={events} /></Suspense>
+      <Suspense fallback={<p>Loading backup controls...</p>}><BackupPanel events={events} onRestored={(backup) => { setEvents(backup.events); setJournalRevision((revision) => revision + 1) }} /></Suspense>
 
       <GlassCard className="h-96">
         <SectionHeader title="Weekly Trend" subtitle="Accuracy, consistency, and speed progression" />
